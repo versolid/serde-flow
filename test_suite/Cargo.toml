@@ -1,0 +1,15 @@
+[package]
+name = "test_suite"
+version = "0.0.0"
+authors = ["Ivan Ermolaev <ermolaevym@gmail.com>"]
+edition = "2021"
+publish = false
+
+[dependencies]
+serde = { version = "1.0.197", features = ["derive"]}
+serde_flow = { path = "../serde_flow" }
+tempfile = "3"
+
+[dev-dependencies]
+trybuild = "1.0.89"
+serde_flow_derive = { path = "../serde_flow_derive" }

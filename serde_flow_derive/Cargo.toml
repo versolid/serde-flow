@@ -1,0 +1,28 @@
+[package]
+name = "serde_flow_derive"
+version = "1.0.0"
+edition = "2021"
+authors = ["Ivan Ermolaev <ermolaevym@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+description = "Helps to migrate serde objects"
+homepage = "https://github.com/versolid/serde-flow"
+repository = "https://github.com/versolid/serde-flow"
+documentation = "https://docs.rs/serde-flow"
+keywords = ["serde", "migration"]
+categories = ["encoding", "network-programming"]
+
+[lib]
+name = "serde_flow_derive"
+proc-macro = true
+
+[dependencies]
+serde = { version = "1.0.197", features = ["derive"]}
+proc-macro2 = "1.0.78"
+syn = "2.0.52"
+quote = "1.0.35"
+
+[features]
+default = ["tokio"]
+tokio = []
+async-std = []
