@@ -50,8 +50,7 @@ impl FileFlowGenerator {
 
                     let mut bytes = std::fs::read(path)?;
                     if bytes.len() < 2 {
-                        // Handle the case where there are not enough bytes to form a u16
-                        panic!("Object does not contain enough bytes");
+                        return Err(serde_flow::error::SerdeFlowError::FormatInvalid);
                     }
 
                     // Extract the first two bytes and convert them to a u16 in little-endian format

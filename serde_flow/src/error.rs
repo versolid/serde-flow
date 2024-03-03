@@ -10,6 +10,8 @@ pub enum SerdeFlowError {
     ZeroBytes,
     #[error("Failed to parse, incorrect format or not enough variants")]
     ParsingFailed,
+    #[error("Invalid format")]
+    FormatInvalid,
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 }
