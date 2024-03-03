@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 serde = { version = "1.0.197", features = ["derive"]}
 serde_flow = { path = "../serde_flow" }
+rkyv = { version = "0.7.44", features = ["validation"] }
 tempfile = "3"
 
 [dev-dependencies]
