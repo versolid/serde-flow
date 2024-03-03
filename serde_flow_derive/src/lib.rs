@@ -152,6 +152,7 @@ pub fn file_flow_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(FlowVariant, attributes(variant))]
 pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
+
     let attrs = input.attrs.clone();
     let variant = attrs
         .iter()
