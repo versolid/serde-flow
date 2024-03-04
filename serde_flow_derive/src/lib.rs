@@ -3,7 +3,7 @@ extern crate proc_macro;
 use std::collections::HashSet;
 
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{quote, ToTokens};
 use syn::{
     parse::{Parse, ParseStream, Result},
     parse_macro_input,
@@ -149,24 +149,36 @@ pub fn file_flow_derive(input: TokenStream) -> TokenStream {
     file_flow_gen.generate_file_flow()
 }
 
+use crc::{Crc, CRC_16_IBM_SDLC};
+const X25: Crc<u16> = Crc::<u16>::new(&CRC_16_IBM_SDLC);
+
 #[proc_macro_derive(FlowVariant, attributes(variant))]
 pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-
-    let attrs = input.attrs.clone();
-    let variant = attrs
-        .iter()
-        .find(|attr| attr.path().is_ident("variant"))
-        .expect("variant macro is required");
-
-    let meta = &variant.meta;
-    let variant: LitInt = if let Meta::List(meta_list) = meta {
-        let token_stream: TokenStream = meta_list.tokens.clone().into();
-        let variant = parse_macro_input!(token_stream as AttributeLitInt);
-        variant.value
+    let number: u16 = if let syn::Data::Struct(s) = &input.data {
+        let types_str = match s.fields.clone() {
+            syn::Fields::Named(fields) => {
+                let field_types = fields.named.iter().map(|f| &f.ty);
+                field_types
+                    .map(|ty| ty.to_token_stream().to_string())
+                    .collect::<Vec<_>>()
+                    .join(":")
+            }
+            syn::Fields::Unnamed(fields) => {
+                let field_types = fields.unnamed.iter().map(|f| &f.ty);
+                field_types
+                    .map(|ty| ty.to_token_stream().to_string())
+                    .collect::<Vec<_>>()
+                    .join(":")
+            }
+            _ => panic!("Unit structs are not supported"),
+        };
+        println!("fields {}", types_str);
+        X25.checksum(types_str.as_bytes())
     } else {
-        panic!("Failed to decode variant");
+        panic!("This macro only supports structs");
     };
+    let variant: LitInt = LitInt::new(&number.to_string(), proc_macro2::Span::call_site());
 
     let flow_id_name = Ident::new(
         &gen_flow_id_name(&input.ident),
@@ -176,6 +188,7 @@ pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
         const #flow_id_name: u16 = #variant;
     };
 
+    println!("Result {}", flow_variant_impl);
     flow_variant_impl.into()
 }
 

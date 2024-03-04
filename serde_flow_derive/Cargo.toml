@@ -21,6 +21,7 @@ serde = { version = "1.0.197", features = ["derive"]}
 proc-macro2 = "1.0.78"
 syn = "2.0.52"
 quote = "1.0.35"
+crc = "3.0.1"
 
 [features]
 default = ["tokio"]
