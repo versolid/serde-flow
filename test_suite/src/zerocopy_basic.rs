@@ -23,7 +23,7 @@ fn struct_serialize_archive() {
         first_name: "John".to_string(),
         last_name: "Doe".to_string(),
     };
-    let bytes = Encoder::serialize::<User>(user).unwrap();
+    let bytes = Encoder::serialize::<User>(&user).unwrap();
 
     let decoder = Reader::<User>::new(bytes);
     let user_archived = decoder.archive().unwrap();
@@ -53,7 +53,7 @@ fn struct_with_hash_map_serialize_archive() {
         },
     );
 
-    let bytes = Encoder::serialize::<UsersWithHashMap>(users).unwrap();
+    let bytes = Encoder::serialize::<UsersWithHashMap>(&users).unwrap();
     let decoder = Reader::<UsersWithHashMap>::new(bytes);
     let users_archived = decoder.archive().unwrap();
 

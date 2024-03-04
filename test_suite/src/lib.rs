@@ -3,3 +3,6 @@ pub mod basic_migration;
 
 #[cfg(test)]
 pub mod zerocopy_basic;
+
+#[cfg(test)]
+pub mod zerocopy_basic_migration;

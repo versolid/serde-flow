@@ -46,7 +46,7 @@ impl FileFlowGenerator {
                         return Err(serde_flow::error::SerdeFlowError::FileNotFound);
                     }
 
-                    let mut bytes = std::fs::read(path)?;
+                    let bytes = std::fs::read(path)?;
                     if bytes.len() < 2 {
                         return Err(serde_flow::error::SerdeFlowError::FormatInvalid);
                     }
@@ -84,7 +84,86 @@ impl FileFlowGenerator {
                 fn migrate<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::FlowResult<()> {
                     use serde_flow::flow::File;
                     let object = #struct_name::load_from_path::<E>(path)?;
-                    object.save_to_path::<E>(path)?;
+                    object.save_to_path::<E>(path)
+                }
+            }
+        };
+
+        total_impl.into()
+    }
+
+    pub fn generate_file_flow_zerocopy(&self) -> TokenStream {
+        let struct_name = self.input.ident.clone();
+        let current_flow_id = gen_flow_id_name(&self.input.ident);
+        let migrations: Vec<proc_macro2::TokenStream> = self
+            .migrations
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|i| {
+                let const_flow_id_name = gen_flow_id_name(&i);
+                quote! {
+                    #const_flow_id_name => {
+                        use serde_flow::flow::zerocopy::File;
+                        let old_object = serde_flow::encoder::zerocopy::Reader::<#i>::new(bytes).deserialize()?;
+                        let converted = #struct_name::from(old_object);
+                        converted.save_to_path(path)?;
+                        #struct_name::from_path(path)
+                    },
+                }
+            })
+            .collect();
+
+        let file_flow_impl = quote! {
+            impl serde_flow::flow::zerocopy::File<#struct_name> for #struct_name {
+                fn from_path(path: &std::path::Path) -> serde_flow::flow::FlowResult<serde_flow::encoder::zerocopy::Reader<#struct_name>> {
+                    if !path.exists() {
+                        return Err(serde_flow::error::SerdeFlowError::FileNotFound);
+                    }
+
+                    let mut bytes = std::fs::read(path)?;
+                    if bytes.len() < 2 {
+                        return Err(serde_flow::error::SerdeFlowError::FormatInvalid);
+                    }
+                    // Extract the first two bytes and convert them to a u16 in little-endian format
+                    let flow_id = u16::from_le_bytes([bytes[0], bytes[1]]);
+
+                    // Remove the first two bytes from the original Vec<u8>
+                    let bytes = bytes.split_off(2);
+                    match flow_id {
+                        #current_flow_id => Ok(serde_flow::encoder::zerocopy::Reader::<#struct_name>::new(bytes)),
+                        #(#migrations)*
+                        _ => Err(serde_flow::error::SerdeFlowError::VariantNotFound),
+                    }
+                }
+
+                fn save_to_path(&self, path: &std::path::Path) -> serde_flow::flow::FlowResult<()> {
+                    let mut total_bytes = #current_flow_id.to_le_bytes().to_vec();
+                    let bytes = serde_flow::encoder::zerocopy::Encoder::serialize::<#struct_name>(self)?;
+                    total_bytes.extend_from_slice(&bytes);
+                    std::fs::write(path, &total_bytes)?;
+                    Ok(())
+                }
+            }
+
+        };
+
+        if self.migrations.is_none() {
+            return file_flow_impl.into();
+        }
+
+        let total_impl = quote! {
+            #file_flow_impl
+            impl serde_flow::flow::zerocopy::FileMigrate<#struct_name> for #struct_name {
+                fn load_and_migrate(path: &std::path::Path)
+                    -> serde_flow::flow::FlowResult<serde_flow::encoder::zerocopy::Reader<#struct_name>>
+                {
+                    use serde_flow::flow::zerocopy::File;
+                    #struct_name::from_path(path)
+                }
+                fn migrate(path: &std::path::Path) -> serde_flow::flow::FlowResult<()> {
+                    use serde_flow::flow::zerocopy::File;
+                    let _ = #struct_name::from_path(path)?;
                     Ok(())
                 }
             }
@@ -141,7 +220,30 @@ pub fn file_flow_derive(input: TokenStream) -> TokenStream {
     file_flow_gen.generate_file_flow()
 }
 
-#[proc_macro_derive(FlowVariant, attributes(variant))]
+#[proc_macro_derive(FileFlowZeroCopy, attributes(migrations))]
+pub fn file_flow_zerocopy_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let attrs = input.attrs.clone();
+    let migrations = attrs.iter().find(|attr| attr.path().is_ident("migrations"));
+
+    let migrations: Option<HashSet<Ident>> = if let Some(migrations) = migrations {
+        let meta = &migrations.meta;
+        if let Meta::List(meta_list) = meta {
+            let token_stream: TokenStream = meta_list.tokens.clone().into();
+            let migrations_args = parse_macro_input!(token_stream as AttributeArgs);
+            Some(migrations_args.args)
+        } else {
+            None
+        }
+    } else {
+        None
+    };
+
+    let file_flow_gen = FileFlowGenerator::new(input, migrations);
+    file_flow_gen.generate_file_flow_zerocopy()
+}
+
+#[proc_macro_derive(FlowVariant, attributes(variant, zerocopy))]
 pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
     let fields_gen = FieldsGenerator::parse(input.clone());
@@ -153,6 +255,8 @@ pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
         .iter()
         .find(|attr| attr.path().is_ident("variant"))
         .expect("variant macro is required");
+
+    let is_zerocopy = attrs.iter().any(|attr| attr.path().is_ident("zerocopy"));
 
     let meta = &variant.meta;
     let variant: LitInt = if let Meta::List(meta_list) = meta {
@@ -166,8 +270,17 @@ pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
     let struct_name = input.ident.clone();
     let flow_id_name = gen_flow_id_name(&input.ident);
     let flow_id_struct_name = gen_flow_id_struct_name(&input.ident);
-    let flow_variant_impl = quote! {
+    let flow_variant_const_impl = quote! {
         const #flow_id_name: u16 = #variant;
+    };
+
+    if is_zerocopy {
+        return flow_variant_const_impl.into();
+    }
+
+    let flow_variant_impl = quote! {
+        #flow_variant_const_impl
+
         #[derive(serde::Serialize, serde::Deserialize)]
         pub struct #flow_id_struct_name {
             pub flow_id: u16,
