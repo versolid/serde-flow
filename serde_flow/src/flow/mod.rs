@@ -1,4 +1,4 @@
-use serde::{de::DeserializeOwned, Serialize};
+use serde::{de::DeserializeOwned, Serialize, Deserialize};
 
 use crate::encoder::FlowEncoder;
 use crate::error::SerdeFlowError;
@@ -30,4 +30,9 @@ pub trait FileFlowAsyncMigrateRunner<T: FileFlowAsyncRunner<T>> {
 pub trait BytesFlowRunner<T> {
     fn encode_from_bytes(&self) -> FlowResult<T>;
     fn decode_from_bytes(bytes: &[u8]) -> FlowResult<T>;
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct FlowId {
+    pub flow_id: u16,
 }

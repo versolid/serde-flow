@@ -14,14 +14,14 @@ pub struct User {
 }
 
 #[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
-#[variant(1)]
+#[variant(2)]
 pub struct UserV1 {
     pub first_name: String,
     pub last_name: String,
 }
 
 #[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
-#[variant(2)]
+#[variant(1)]
 pub struct UserV2 {
     pub name: String,
 }
