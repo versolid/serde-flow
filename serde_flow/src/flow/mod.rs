@@ -1,8 +1,11 @@
-use serde::{de::DeserializeOwned, Serialize, Deserialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::encoder::FlowEncoder;
 use crate::error::SerdeFlowError;
 use std::{future::Future, path::Path, pin::Pin};
+
+#[cfg(feature = "zerocopy")]
+pub mod zerocopy;
 
 pub type FlowResult<T> = Result<T, SerdeFlowError>;
 pub type AsyncResult<T> = Pin<Box<dyn Future<Output = FlowResult<T>>>>;
@@ -32,6 +35,7 @@ pub trait BytesFlowRunner<T> {
     fn decode_from_bytes(bytes: &[u8]) -> FlowResult<T>;
 }
 
+#[cfg(feature = "serde")]
 #[derive(Serialize, Deserialize)]
 pub struct FlowId {
     pub flow_id: u16,
