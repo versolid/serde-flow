@@ -1,12 +1,7 @@
 use std::collections::HashMap;
 
 use rkyv::{Archive, Deserialize, Serialize};
-use serde_flow::{
-    encoder::zerocopy::{Encoder, FlowZeroCopyReader},
-    flow::FileFlowMigrateRunner,
-    flow::FileFlowRunner,
-    FileFlow, FlowVariant,
-};
+use serde_flow::encoder::zerocopy::{Encoder, Reader};
 
 #[derive(Archive, Serialize, Deserialize)]
 #[archive(check_bytes)]
@@ -30,7 +25,7 @@ fn struct_serialize_archive() {
     };
     let bytes = Encoder::serialize::<User>(user).unwrap();
 
-    let decoder = FlowZeroCopyReader::<User>::new(bytes);
+    let decoder = Reader::<User>::new(bytes);
     let user_archived = decoder.archive().unwrap();
 
     assert_eq!(user_archived.first_name, "John".to_string());
@@ -59,7 +54,7 @@ fn struct_with_hash_map_serialize_archive() {
     );
 
     let bytes = Encoder::serialize::<UsersWithHashMap>(users).unwrap();
-    let decoder = FlowZeroCopyReader::<UsersWithHashMap>::new(bytes);
+    let decoder = Reader::<UsersWithHashMap>::new(bytes);
     let users_archived = decoder.archive().unwrap();
 
     assert_eq!(users_archived.amount, 1234);

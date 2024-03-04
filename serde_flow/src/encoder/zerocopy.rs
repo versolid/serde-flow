@@ -19,7 +19,7 @@ impl Encoder {
     }
 }
 
-pub struct FlowZeroCopyReader<T>
+pub struct Reader<T>
 where
     T: rkyv::Archive,
     T::Archived: for<'b> rkyv::CheckBytes<rkyv::validation::validators::DefaultValidator<'b>>,
@@ -28,7 +28,7 @@ where
     phantom: PhantomData<T>,
 }
 
-impl<T> FlowZeroCopyReader<T>
+impl<T> Reader<T>
 where
     T: rkyv::Archive,
     T::Archived: for<'b> rkyv::CheckBytes<rkyv::validation::validators::DefaultValidator<'b>>,

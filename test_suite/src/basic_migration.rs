@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
-use serde_flow::{
-    encoder::bincode, flow::FileFlowMigrateRunner, flow::FileFlowRunner, FileFlow, FlowVariant,
-};
+use serde_flow::{encoder::bincode, flow::File, flow::FileMigrate, FileFlow, FlowVariant};
 use tempfile::tempdir;
 
 #[derive(Serialize, Deserialize, FileFlow, FlowVariant)]

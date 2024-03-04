@@ -40,7 +40,7 @@ impl FileFlowGenerator {
             .collect();
 
         let file_flow_impl = quote! {
-            impl serde_flow::flow::FileFlowRunner<#struct_name> for #struct_name {
+            impl serde_flow::flow::File<#struct_name> for #struct_name {
                 fn load_from_path<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::FlowResult<#struct_name> {
                     if !path.exists() {
                         return Err(serde_flow::error::SerdeFlowError::FileNotFound);
@@ -68,22 +68,21 @@ impl FileFlowGenerator {
 
         };
 
-        println!("Value \n{}", file_flow_impl);
         if self.migrations.is_none() {
             return file_flow_impl.into();
         }
 
         let total_impl = quote! {
             #file_flow_impl
-            impl serde_flow::flow::FileFlowMigrateRunner<#struct_name> for #struct_name {
+            impl serde_flow::flow::FileMigrate<#struct_name> for #struct_name {
                 fn load_and_migrate<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::FlowResult<#struct_name> {
-                    use serde_flow::flow::FileFlowRunner;
+                    use serde_flow::flow::File;
                     let object = #struct_name::load_from_path::<E>(path)?;
                     object.save_to_path::<E>(path)?;
                     Ok(object)
                 }
                 fn migrate<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::FlowResult<()> {
-                    use serde_flow::flow::FileFlowRunner;
+                    use serde_flow::flow::File;
                     let object = #struct_name::load_from_path::<E>(path)?;
                     object.save_to_path::<E>(path)?;
                     Ok(())
@@ -148,7 +147,7 @@ pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
     let fields_gen = FieldsGenerator::parse(input.clone());
     let fields = fields_gen.fields();
     let field_names = fields_gen.field_names();
-        
+
     let attrs = input.attrs.clone();
     let variant = attrs
         .iter()
@@ -191,7 +190,7 @@ pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
                 }
             }
         }
-        
+
     };
 
     flow_variant_impl.into()
@@ -211,30 +210,33 @@ impl FieldsGenerator {
         } else {
             panic!("This macro only supports structs");
         };
-        Self {
-            fields,
-        }
+        Self { fields }
     }
 
     pub fn fields(&self) -> Vec<proc_macro2::TokenStream> {
-        self.fields.named.iter().map(|f| f.to_token_stream()).collect()
+        self.fields
+            .named
+            .iter()
+            .map(|f| f.to_token_stream())
+            .collect()
     }
 
     pub fn field_names(&self) -> Vec<Ident> {
-        self.fields.named.iter().map(|f| f.ident.clone().unwrap()).collect()
+        self.fields
+            .named
+            .iter()
+            .map(|f| f.ident.clone().unwrap())
+            .collect()
     }
 }
 
 fn gen_flow_id_name(iden: &Ident) -> Ident {
     Ident::new(
         &format!("FLOW_ID_{}", iden.to_string().to_uppercase()),
-        proc_macro2::Span::call_site()
+        proc_macro2::Span::call_site(),
     )
 }
 
-fn gen_flow_id_struct_name(iden: &Ident) -> Ident {
-    Ident::new(
-        &format!("{}FlowId", iden), 
-        proc_macro2::Span::call_site()
-    )
+fn gen_flow_id_struct_name(ident: &Ident) -> Ident {
+    Ident::new(&format!("{ident}FlowId"), proc_macro2::Span::call_site())
 }
