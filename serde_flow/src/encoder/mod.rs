@@ -2,6 +2,8 @@ use crate::error::SerdeFlowError;
 
 #[cfg(feature = "bincode")]
 pub mod bincode;
+#[cfg(feature = "json")]
+pub mod json;
 #[cfg(feature = "zerocopy")]
 pub mod zerocopy;
 

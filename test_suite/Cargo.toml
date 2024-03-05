@@ -7,10 +7,15 @@ publish = false
 
 [dependencies]
 serde = { version = "1.0.197", features = ["derive"]}
-serde_flow = { path = "../serde_flow", features = ["zerocopy"] }
+serde_flow = { path = "../serde_flow", features = ["zerocopy", "json"] }
 rkyv = { version = "0.7.44", features = ["validation"] }
 tempfile = "3"
 
 [dev-dependencies]
 trybuild = "1.0.89"
+criterion = { version = "0.5.1", features = ["html_reports"] }
 serde_flow_derive = { path = "../serde_flow_derive" }
+
+[[bench]]
+name = "comparison"
+harness = false

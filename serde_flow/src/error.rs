@@ -6,8 +6,8 @@ pub enum SerdeFlowError {
     VariantNotFound,
     #[error("File not found for object")]
     FileNotFound,
-    #[error("Zero bytes")]
-    ZeroBytes,
+    #[error("Encoding failed")]
+    EncodingFailed,
     #[error("Failed to parse, incorrect format or not enough variants")]
     ParsingFailed,
     #[error("Invalid format")]
