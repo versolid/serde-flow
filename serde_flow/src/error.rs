@@ -2,16 +2,24 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum SerdeFlowError {
-    #[error("Variant not found for object")]
+    /// Indicates that a variant for the object was not found.
+    #[error("Variant not found for the object")]
     VariantNotFound,
-    #[error("File not found for object")]
+    /// Indicates that a file for the object was not found.
+    #[error("File not found the object")]
     FileNotFound,
-    #[error("Encoding failed")]
+    /// Indicates that encoding of the object failed.
+    #[error("Encoding process failed")]
     EncodingFailed,
-    #[error("Failed to parse, incorrect format or not enough variants")]
+    /// Indicates that parsing of the object failed due to incorrect format or insufficient variants.
+    #[error("Parsing failed due to incorrect format or insufficient variants")]
     ParsingFailed,
-    #[error("Invalid format")]
+    /// Indicates that the format of the object is invalid.
+    #[error("Invalid data format")]
     FormatInvalid,
+    /// Indicates an undefined error.
+    #[error("An undefined error occurred")]
+    Undefined,
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 }

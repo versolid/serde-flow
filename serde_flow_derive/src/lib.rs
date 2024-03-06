@@ -8,7 +8,8 @@ use syn::{
     parse::{Parse, ParseStream, Result},
     parse_macro_input,
     punctuated::Punctuated,
-    DeriveInput, Ident, LitInt, Meta, Token,
+    spanned::Spanned,
+    DeriveInput, Ident, LitInt, Meta, MetaNameValue, Token,
 };
 
 struct FileFlowGenerator {
@@ -246,7 +247,7 @@ pub fn file_flow_zerocopy_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(FlowVariant, attributes(variant, zerocopy))]
 pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-    let fields_gen = FieldsGenerator::parse(input.clone());
+    let fields_gen = FieldsGenerator::parse(&input);
     let fields = fields_gen.fields();
     let field_names = fields_gen.field_names();
 
@@ -309,12 +310,209 @@ pub fn flow_variant_derive(input: TokenStream) -> TokenStream {
     flow_variant_impl.into()
 }
 
+#[proc_macro_derive(Flow, attributes(flow, variants))]
+pub fn flow_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+    let fields_gen = FieldsGenerator::parse(&input);
+    let fields = fields_gen.fields();
+    let field_names = fields_gen.field_names();
+
+    let attrs = input.attrs.clone();
+    let flow = attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("flow"))
+        .expect("flow macro is required");
+    let variants_attr = attrs
+        .iter()
+        .find(|attr| attr.path().is_ident("variants"))
+        .expect("variants macro is required");
+
+    // Extract meta items from the attribute
+    let mut version = None;
+    let mut is_file = false;
+    let mut is_bytes = false;
+    let mut is_nonbloking = false;
+    let mut is_bloking = false;
+    let mut is_zerocopy = false;
+    let mut variants = Vec::new();
+
+    match &flow.meta {
+        syn::Meta::List(meta_list) => meta_list.parse_nested_meta(|meta| {
+            if meta.path.is_ident("variant") {
+                let value = meta.value().unwrap(); // this parses the `=`
+                let lit: syn::LitInt = value.parse().unwrap();
+                version = Some(lit.base10_parse::<u16>().unwrap());
+                return Ok(());
+            }
+
+            if meta.path.is_ident("bytes") {
+                is_bytes = true;
+                return Ok(());
+            }
+
+            if meta.path.is_ident("file") {
+                is_file = true;
+                if meta.input.peek(syn::token::Paren) {
+                    meta.parse_nested_meta(|file_meta| {
+                        if file_meta.path.is_ident("blocking") {
+                            is_nonbloking = true;
+                            return Ok(());
+                        }
+                        if file_meta.path.is_ident("nonbloking") {
+                            is_nonbloking = true;
+                            return Ok(());
+                        }
+                        if file_meta.path.is_ident("zerocopy") {
+                            is_zerocopy = true;
+                            return Ok(());
+                        }
+                        Err(file_meta.error("unsupported file property"))
+                    });
+                } else {
+                    is_bloking = true;
+                }
+                return Ok(());
+            }
+
+            Err(meta.error("unsupported flow property"))
+        }),
+        _ => return TokenStream::new(),
+    };
+
+    match &variants_attr.meta {
+        syn::Meta::List(meta_list) => meta_list.parse_nested_meta(|meta| {
+            if let Some(ident) = meta.path.get_ident().cloned() {
+                variants.push(ident);
+                return Ok(());
+            }
+            Err(meta.error("unsupported variants property"))
+        }),
+        _ => return TokenStream::new(),
+    };
+
+    println!(
+        "version\t{version:?}\nis_file:\t{is_file}\nnonbloking:\t{is_nonbloking}\nis_zerocopy:\t{is_zerocopy}",
+    );
+
+    TokenStream::new()
+}
+
+#[derive(Default)]
+struct FlowGenerator {
+    version: Option<u16>,
+    is_file: bool,
+    is_bytes: bool,
+    is_nonbloking: bool,
+    is_bloking: bool,
+    is_zerocopy: bool,
+    variants: Option<Vec<Ident>>,
+    fields_gen: Option<FieldsGenerator>,
+}
+
+impl FlowGenerator {
+    pub fn parse(input: DeriveInput) -> syn::parse::Result<Self> {
+        let mut flow_gen = FlowGenerator::default();
+        let attrs = input.attrs.clone();
+        let flow_attr = attrs
+            .iter()
+            .find(|attr| attr.path().is_ident("flow"))
+            .ok_or(syn::parse::Error::new(
+                input.span(),
+                "flow attribute must be provided",
+            ))?;
+        let variants_attr = attrs.iter().find(|attr| attr.path().is_ident("variants"));
+
+        // parse #flow attribute
+        flow_gen.parse_flow(flow_attr)?;
+
+        // parse #variants attribute
+        if let Some(variants_attr) = variants_attr {
+            flow_gen.parse_variants(variants_attr)?;
+        }
+
+        // parse structure's fields
+        let fields_gen = FieldsGenerator::parse(&input);
+        flow_gen.fields_gen = Some(fields_gen);
+
+        Ok(flow_gen)
+    }
+
+    fn parse_flow(&mut self, attr: &syn::Attribute) -> syn::parse::Result<()> {
+        match &attr.meta {
+            syn::Meta::List(meta_list) => meta_list.parse_nested_meta(|meta| {
+                if meta.path.is_ident("variant") {
+                    let value = meta.value().unwrap(); // this parses the `=`
+                    let lit: syn::LitInt = value.parse().unwrap();
+                    self.version = Some(lit.base10_parse::<u16>().unwrap());
+                    return Ok(());
+                }
+
+                if meta.path.is_ident("bytes") {
+                    self.is_bytes = true;
+                    return Ok(());
+                }
+
+                if meta.path.is_ident("file") {
+                    self.is_file = true;
+                    if meta.input.peek(syn::token::Paren) {
+                        meta.parse_nested_meta(|file_meta| {
+                            if file_meta.path.is_ident("blocking") {
+                                self.is_nonbloking = true;
+                                return Ok(());
+                            }
+                            if file_meta.path.is_ident("nonbloking") {
+                                self.is_nonbloking = true;
+                                return Ok(());
+                            }
+                            if file_meta.path.is_ident("zerocopy") {
+                                self.is_zerocopy = true;
+                                return Ok(());
+                            }
+                            Err(file_meta.error("unsupported file property"))
+                        });
+                    } else {
+                        self.is_bloking = true;
+                    }
+                    return Ok(());
+                }
+
+                Err(meta.error("unsupported flow property"))
+            }),
+            _ => Err(syn::parse::Error::new(
+                attr.span(),
+                "Failed to parse flow attribute",
+            )),
+        }
+    }
+
+    fn parse_variants(&mut self, attr: &syn::Attribute) -> syn::parse::Result<()> {
+        let mut variants = Vec::new();
+        let result = match &attr.meta {
+            syn::Meta::List(meta_list) => meta_list.parse_nested_meta(|meta| {
+                if let Some(ident) = meta.path.get_ident().cloned() {
+                    variants.push(ident);
+                    return Ok(());
+                }
+                Err(meta.error("unsupported variants property"))
+            }),
+            _ => Err(syn::parse::Error::new(
+                attr.span(),
+                "Failed to parse vartiants",
+            )),
+        };
+        if result.is_ok() {
+            self.variants = Some(variants);
+        }
+        result
+    }
+}
+
 struct FieldsGenerator {
     fields: syn::FieldsNamed,
 }
 
 impl FieldsGenerator {
-    pub fn parse(input: DeriveInput) -> Self {
+    pub fn parse(input: &DeriveInput) -> Self {
         let fields: syn::FieldsNamed = if let syn::Data::Struct(s) = &input.data {
             match s.fields.clone() {
                 syn::Fields::Named(fields) => fields,

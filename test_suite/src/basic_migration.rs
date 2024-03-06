@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use serde_flow::{
-    encoder::bincode, encoder::json, flow::File, flow::FileMigrate, FileFlow, FlowVariant,
+    encoder::bincode, encoder::json, flow::File, flow::FileMigrate, FileFlow, FlowVariant, Flow
 };
 use tempfile::tempdir;
 
@@ -23,6 +23,13 @@ pub struct UserV1 {
 #[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
 #[variant(1)]
 pub struct UserV2 {
+    pub name: String,
+}
+
+#[derive(Flow)]
+#[flow(variant = 3, file(zerocopy), bytes)]
+#[variants(One, Two)]
+pub struct UserTestt {
     pub name: String,
 }
 

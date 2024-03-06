@@ -1,5 +1,5 @@
 # Serde Flow
-`serde_flow` is a Rust library designed to facilitate the versioning and migration of serialized files. In the lifecycle of software development, data formats evolve. Fields are added, modified, or removed, leading to potential mismatches between your application's current data structures and the serialized files on disk. serde_flow provides a seamless pathway to migrate these files, ensuring compatibility across different versions of your data structures, akin to how database migration tools manage schema evolution.
+The `serde_flow` is a Rust library that helps manage changes in serialized data formats during software development. As data structures evolve over time, the library makes it easy to migrate files and maintain compatibility across different versions of your application's data structures, similar to how database migration tools handle schema evolution.
 
 # Usage
 ```rust
