@@ -1,32 +1,29 @@
 use rkyv::{Archive, Deserialize, Serialize};
 use serde_flow::flow::zerocopy::File;
-use serde_flow_derive::{FileFlowZeroCopy, FlowVariant};
+use serde_flow_derive::Flow;
 use tempfile::tempdir;
 
-#[derive(Archive, Serialize, Deserialize, FileFlowZeroCopy, FlowVariant)]
+#[derive(Archive, Serialize, Deserialize, Flow)]
 #[archive(check_bytes)]
-#[zerocopy]
-#[variant(3)]
-#[migrations(CarV1, CarV2)]
+#[flow(variant = 3, file, zerocopy)]
+#[variants(CarV1, CarV2)]
 pub struct Car {
     pub name: String,
     pub price: String,
 }
 
-#[derive(Archive, Serialize, Deserialize, FlowVariant)]
+#[derive(Archive, Serialize, Deserialize, Flow)]
 #[archive(check_bytes)]
-#[zerocopy]
-#[variant(2)]
+#[flow(variant = 2, zerocopy)]
 pub struct CarV1 {
     pub brand: String,
     pub model: String,
     pub price: String,
 }
 
-#[derive(Archive, Serialize, Deserialize, FileFlowZeroCopy, FlowVariant)]
+#[derive(Archive, Serialize, Deserialize, Flow)]
 #[archive(check_bytes)]
-#[zerocopy]
-#[variant(1)]
+#[flow(variant = 1, file, zerocopy)]
 pub struct CarV2 {
     pub brand: String,
     pub model: String,
@@ -64,7 +61,7 @@ fn test_v2_load_from_path() {
 
     car_v2.save_to_path(path.as_path()).unwrap();
 
-    let car = Car::from_path(path.as_path()).unwrap();
+    let car = Car::load_from_path(path.as_path()).unwrap();
     let car_archived = car.archive().unwrap();
 
     assert_eq!(car_archived.name, "BMW x3".to_string());

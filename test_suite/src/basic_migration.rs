@@ -1,35 +1,26 @@
 use serde::{Deserialize, Serialize};
-use serde_flow::{
-    encoder::bincode, encoder::json, flow::File, flow::FileMigrate, FileFlow, FlowVariant, Flow
-};
+use serde_flow::{encoder::bincode, encoder::json, flow::File, flow::FileMigrate, Flow};
 use tempfile::tempdir;
 
-#[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
-#[variant(3)]
-#[migrations(UserV1, UserV2)]
+#[derive(Serialize, Deserialize, Flow)]
+#[flow(variant = 3, file)]
+#[variants(UserV1, UserV2)]
 pub struct User {
     pub first_name: String,
     pub middle_name: String,
     pub last_name: String,
 }
 
-#[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
-#[variant(2)]
+#[derive(Serialize, Deserialize, Flow)]
+#[flow(variant = 2, file)]
 pub struct UserV1 {
     pub first_name: String,
     pub last_name: String,
 }
 
-#[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
-#[variant(1)]
+#[derive(Serialize, Deserialize, Flow)]
+#[flow(variant = 1, file)]
 pub struct UserV2 {
-    pub name: String,
-}
-
-#[derive(Flow)]
-#[flow(variant = 3, file(zerocopy), bytes)]
-#[variants(One, Two)]
-pub struct UserTestt {
     pub name: String,
 }
 
@@ -136,8 +127,8 @@ fn test_v1_load_from_path() {
     assert_eq!(user.last_name.as_str(), "Doe");
 }
 
-#[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
-#[variant(3)]
+#[derive(Serialize, Deserialize, Flow)]
+#[flow(variant = 3, file)]
 pub struct UserTestV3 {
     pub first_name: String,
     pub middle_name: String,

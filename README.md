@@ -5,9 +5,9 @@ The `serde_flow` is a Rust library that helps manage changes in serialized data 
 ```rust
 
 // the main file
-#[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
-#[variant(3)] // version of the main file
-#[migrations(UserV1, UserV2)]
+#[derive(Serialize, Deserialize, Flow)]
+#[flow(variant = 2, file)]
+#[variants(UserV1, UserV2)]
 pub struct User {
     pub first_name: String,
     pub middle_name: String,
@@ -15,16 +15,16 @@ pub struct User {
 }
 
 // previous variant
-#[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
-#[variant(2)]
+#[derive(Serialize, Deserialize, Flow)]
+#[flow(variant = 2)]
 pub struct UserV1 {
     pub first_name: String,
     pub last_name: String,
 }
 
 // the first version of the User entity
-#[derive(Serialize, Deserialize, FileFlow, FlowVariant)]
-#[variant(1)]
+#[derive(Serialize, Deserialize, Flow)]
+#[flow(variant = 1)]
 pub struct UserV2 {
     pub name: String,
 }
