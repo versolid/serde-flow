@@ -165,11 +165,11 @@ impl FlowGenerator {
                         #struct_name::load_from_path_async(path)
                     }
                     fn migrate_async(path: &std::path::Path) -> serde_flow::flow::AsyncResult<()> {
-                        async {
+                        std::boxed::Box::pin(async {
                             use serde_flow::flow::zerocopy::FileAsync;
                             let _ = #struct_name::load_from_path_async(path).await?;
                             Ok(())
-                        }
+                        })
                     }
                 }
             };
@@ -234,19 +234,19 @@ impl FlowGenerator {
                 #generated
                 impl serde_flow::flow::FileMigrateAsync<#struct_name> for #struct_name {
                     fn load_and_migrate_async<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::AsyncResult<#struct_name> {
-                        async {
+                        std::boxed::Box::pin(async {
                             use serde_flow::flow::FileAsync;
                             let object = #struct_name::load_from_path_async::<E>(path).await?;
                             object.save_to_path_async::<E>(path).await?;
                             Ok(object)
-                        }
+                        })
                     }
-                    fn migrate_async<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::AsyncResult<()> {
-                        async {
+                    fn migrate_async<'a, E: serde_flow::encoder::FlowEncoder>(path: &'a std::path::Path) -> serde_flow::flow::AsyncResult<()> {
+                        std::boxed::Box::pin(async {
                             use serde_flow::flow::FileAsync;
                             let object = #struct_name::load_from_path_async::<E>(path).await?;
-                            object.save_to_path_async::<E>(path).await?;
-                        }
+                            object.save_to_path_async::<E>(path).await
+                        })
                     }
                 }
             };
@@ -300,10 +300,8 @@ impl FlowGenerator {
                 }
             }
             return quote! {
-                fn load_from_path_async<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::AsyncResult<#struct_name> {
-                    async {
-                        #func_body
-                    }
+                fn load_from_path_async<'a, E: serde_flow::encoder::FlowEncoder>(path: &'a std::path::Path) -> serde_flow::flow::AsyncResult<#struct_name> {
+                    std::boxed::Box::pin(async move { #func_body })
                 }
             }
         }         
@@ -355,9 +353,7 @@ impl FlowGenerator {
         } else {
             quote! {
                 fn load_from_path_async(path: &std::path::Path) -> serde_flow::flow::AsyncResult<serde_flow::encoder::zerocopy::Reader<#struct_name>> {
-                    async {
-                        #func_body
-                    }
+                    std::boxed::Box::pin(async { #func_body })
                 }
             }
         }
@@ -386,10 +382,8 @@ impl FlowGenerator {
             }
             
             return quote! {
-                fn save_to_path_async<E: serde_flow::encoder::FlowEncoder>(&self, path: &std::path::Path) -> serde_flow::flow::AsyncResult<()> {
-                    async {
-                        #func_body
-                    }
+                fn save_to_path_async<'a, E: serde_flow::encoder::FlowEncoder>(&'a self, path: &'a std::path::Path) -> serde_flow::flow::AsyncResult<()> {
+                    std::boxed::Box::pin(async move { #func_body })
                 }
             };
         }
@@ -425,12 +419,16 @@ impl FlowGenerator {
                 let mut bytes = std::fs::read(path)?;
             };
         } 
+        
+        #[cfg(feature = "async-std")]
+        {
+            return quote! {
+                let mut bytes = async_std::fs::read(path).await?;
+            };
+        }
 
         quote! {
-            #[cfg(feature = "tokio")]
             let mut bytes = tokio::fs::read(path).await?;
-            #[cfg(feature = "async-std")]
-            let mut bytes = async_std::fs::read(path).await?;
         }
     }
     
@@ -441,11 +439,14 @@ impl FlowGenerator {
             };
         } 
         
+        #[cfg(feature = "async-std")]
+        {
+            return quote! {
+                async_std::fs::write(path, &total_bytes).await?;
+            };
+        }
         quote! {
-            #[cfg(feature = "tokio")]
             tokio::fs::write(path, &total_bytes).await?;
-            #[cfg(feature = "async-std")]
-            async_std::fs::write(path, &total_bytes).await?;
         }
     }
 

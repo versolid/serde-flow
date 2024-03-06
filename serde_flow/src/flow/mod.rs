@@ -2,13 +2,13 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::encoder::FlowEncoder;
 use crate::error::SerdeFlowError;
-use std::{future::Future, path::Path, pin::Pin};
+use std::{future::Future, path::Path};
 
 #[cfg(feature = "zerocopy")]
 pub mod zerocopy;
 
 pub type FlowResult<T> = Result<T, SerdeFlowError>;
-pub type AsyncResult<T> = Pin<Box<dyn Future<Output = FlowResult<T>>>>;
+pub type AsyncResult<'a, T> = futures_util::future::BoxFuture<'a, FlowResult<T>>;
 
 pub trait File<T: Serialize + DeserializeOwned> {
     fn load_from_path<E: FlowEncoder>(path: &Path) -> FlowResult<T>;
@@ -21,13 +21,13 @@ pub trait FileMigrate<T: Serialize + DeserializeOwned + File<T>> {
 }
 
 pub trait FileAsync<T> {
-    fn load_from_path_async<E: FlowEncoder>(path: &Path) -> AsyncResult<T>;
-    fn save_to_path_async<E: FlowEncoder>(&self, path: &Path) -> AsyncResult<T>;
+    fn load_from_path_async<'a, E: FlowEncoder>(path: &'a Path) -> AsyncResult<T>;
+    fn save_to_path_async<'a, E: FlowEncoder>(&'a self, path: &'a Path) -> AsyncResult<()>;
 }
 
 pub trait FileMigrateAsync<T: FileAsync<T>> {
-    fn load_and_migrate_async<E: FlowEncoder>(path: &Path) -> AsyncResult<T>;
-    fn migrate_async<E: FlowEncoder>(path: &Path) -> AsyncResult<()>;
+    fn load_and_migrate_async<'a, E: FlowEncoder>(path: &'a Path) -> AsyncResult<T>;
+    fn migrate_async<'a, E: FlowEncoder>(path: &'a Path) -> AsyncResult<()>;
 }
 
 pub trait Bytes<T> {

@@ -23,6 +23,6 @@ syn = "2.0.52"
 quote = "1.0.35"
 
 [features]
-default = ["tokio"]
+default = []
 tokio = []
 async-std = []
