@@ -15,9 +15,9 @@ impl Encoder {
     /// Returns a `SerdeFlowError::EncodingFailed` if the encoding process fails.
     ///
     /// ```
-    pub fn serialize<T: Archive>(value: &T) -> Result<Vec<u8>, crate::error::SerdeFlowError>
+    pub fn serialize<T>(value: &T) -> Result<Vec<u8>, crate::error::SerdeFlowError>
     where
-        T: Serialize<DefaultSerializer>,
+        T: Archive + Serialize<DefaultSerializer>,
     {
         let mut serializer = DefaultSerializer::default();
         let _ = serializer
