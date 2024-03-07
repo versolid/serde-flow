@@ -1,6 +1,17 @@
 # Serde Flow
 The `serde_flow` is a Rust library that helps manage changes in serialized data formats during software development. As data structures evolve over time, the library makes it easy to migrate files and maintain compatibility across different versions of your application's data structures, similar to how database migration tools handle schema evolution.
 
+```toml
+[dependencies]
+serde_flow = "1.0.0"
+```
+
+# Basics
+Serde Flow primarily consists of three major components:
+1. `#[derive(Flow)]`: To utilize Serde Flow, you must annotate your class with `serde_flow::Flow`. This annotation serves as a signal to the library that the class is eligible for data migration.
+2. `#[flow(variant = N)]`: Utilize this annotation to specify the version of the entity. Simply replace N with a `u16` number that represents the version. This helps in managing different versions of your data structures efficiently.
+3. `#[variants(StructA, StructB, ...)]` (*Optional*): This annotation is optional but highly recommended for comprehensive data migration management. Here, you list the structs that are essential for migrating into the struct highlighted with this annotation. *To ensure, you need to implement `From<VariantStruct>` for all structs listed in `#[variants(..)]`*.
+
 # Usage
 ```rust
 

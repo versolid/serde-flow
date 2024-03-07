@@ -1,0 +1,36 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build
+    runs-on: self-hosted
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo build --verbose
+        
+  test:
+    name: Test
+    runs-on: self-hosted
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test -- verbose
+
+  clippy:
+    name: Clippy
+    runs-on: self-hosted
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@clippy
+      - run: cargo clippy -- -Aclippy::style -Dclippy::perf -Dwarnings
