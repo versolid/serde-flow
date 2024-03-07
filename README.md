@@ -1,24 +1,23 @@
 Serde Flow - Migration Framework
 ==================================
 
-[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/versolid/serde-flow/ci.yml?branch=main&style=for-the-badge" height="20">]
-(https://github.com/versolid/serde-flow/actions?query=branch%3Amain)
+[<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/versolid/serde-flow/ci.yml?branch=main&style=for-the-badge" height="20">](https://github.com/versolid/serde-flow/actions?query=branch%3Amain)
 
 `serde_flow` is a Rust library that simplifies managing changes in *serialized* data formats during software development, enabling seamless file migration and maintaining version compatibility.
 
-# Features
+## Features
 1. **Serialize migration** with `#[variants(UserV1, UserV2)]`
 2. **Serialize to file** with `#[flow(variant = 1, file)]`
 3. **Async** with `#[flow(variant = 1, file(nonbloking))]`
 4. **Zerocopy** with `#[flow(variant = 1, file, zerocopy)]`
 
-# Basics
+## Basics
 Serde Flow primarily consists of three major components:
 1. `#[derive(Flow)]`: To utilize Serde Flow, you must annotate your class with `serde_flow::Flow`. This annotation serves as a signal to the library that the class is eligible for data migration.
 2. `#[flow(variant = N)]`: Utilize this annotation to specify the version of the entity. Simply replace N with a `u16` number that represents the version. This helps in managing different versions of your data structures efficiently.
 3. `#[variants(StructA, StructB, ...)]` (*Optional*): This annotation is optional but highly recommended for comprehensive data migration management. Here, you list the structs that are essential for migrating into the struct highlighted with this annotation. *To ensure, you need to implement `From<VariantStruct>` for all structs listed in `#[variants(..)]`*.
 
-# Usage
+## 🛠️ Getting Started
 ```toml
 [dependencies]
 serde_flow = "1.0.0"
@@ -86,3 +85,6 @@ user_v2
 // Now, you can load User struct, because you have a proper variant to transform
 let user = User::load_from_path::<bincode::Encoder>(path.as_path()).unwrap();
 ```
+
+## 📜 License
+Bitwark is open-source software, freely available under the MIT License.

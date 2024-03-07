@@ -30,7 +30,7 @@ thiserror = "1.0.57"
 serde_flow_derive = { version = "1.0.0", path = "../serde_flow_derive" }
 
 [features]
-default = ["tokio-fs", "bincode", "zerocopy"]
+default = ["tokio-fs", "bincode"]
 tokio-fs = ["dep:tokio", "tokio/fs", "serde_flow_derive/tokio"]
 async-std-fs = ["dep:async-std", "serde_flow_derive/async-std"]
 bincode = ["serde", "dep:bincode"]
