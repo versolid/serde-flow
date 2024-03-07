@@ -72,14 +72,25 @@ where
     /// # Examples
     ///
     /// ```
-    /// use serde_flow::SerdeFlowError;
+    /// use serde_flow::error::SerdeFlowError;
     /// use std::result::Result;
+    /// use serde_flow::encoder::zerocopy;
     ///
-    /// fn example_method() -> Result<(), SerdeFlowError> {
-    ///     // Archive the original data
-    ///     let result: Result<&'a ArchivedType, SerdeFlowError> = original_data.archive();
-    ///     Ok(())
+    /// #[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)]
+    /// #[archive(check_bytes)]
+    /// struct Person {
+    ///     pub name: String,
     /// }
+    ///
+    /// // serialize
+    /// let person = Person { name: "John Doe".to_string() };
+    /// let person_bytes: Vec<u8> = zerocopy::Encoder::serialize(&person).unwrap();
+    /// 
+    /// // zerocopy deserialize
+    /// let person_reader = zerocopy::Reader::<Person>::new(person_bytes);
+    /// let archive = person_reader.archive().unwrap();
+    /// assert_eq!(archive.name, "John Doe");
+    /// 
     /// ```
     pub fn archive(&'a self) -> Result<&'a T::Archived, SerdeFlowError> {
         let borrow = self.archived.borrow();
