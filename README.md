@@ -1,12 +1,14 @@
-# Serde Flow - Migration Framework
-===========================
+Serde Flow - Migration Framework
+==================================
+
 [<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/versolid/serde-flow/ci.yml?branch=main&style=for-the-badge" height="20">]
 (https://github.com/versolid/serde-flow/actions?query=branch%3Amain)
+
 `serde_flow` is a Rust library that simplifies managing changes in *serialized* data formats during software development, enabling seamless file migration and maintaining version compatibility.
 
 # Features
-1. **De/serialize migration** with `#[variants(UserV1, UserV2)]`
-2. **De/serialize to file** with `#[flow(variant = 1, file)]`
+1. **Serialize migration** with `#[variants(UserV1, UserV2)]`
+2. **Serialize to file** with `#[flow(variant = 1, file)]`
 3. **Async** with `#[flow(variant = 1, file(nonbloking))]`
 4. **Zerocopy** with `#[flow(variant = 1, file, zerocopy)]`
 

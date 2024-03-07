@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use super::{AsyncResult, FlowResult};
-use crate::encoder::zerocopy::{DefaultSerializer, Reader};
+use crate::encoder::zerocopy::Reader;
 
 pub trait File<T>
 where

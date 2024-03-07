@@ -21,13 +21,13 @@ pub trait FileMigrate<T: Serialize + DeserializeOwned + File<T>> {
 }
 
 pub trait FileAsync<T> {
-    fn load_from_path_async<'a, E: FlowEncoder>(path: &'a Path) -> AsyncResult<T>;
+    fn load_from_path_async<E: FlowEncoder>(path: &Path) -> AsyncResult<T>;
     fn save_to_path_async<'a, E: FlowEncoder>(&'a self, path: &'a Path) -> AsyncResult<()>;
 }
 
 pub trait FileMigrateAsync<T: FileAsync<T>> {
-    fn load_and_migrate_async<'a, E: FlowEncoder>(path: &'a Path) -> AsyncResult<T>;
-    fn migrate_async<'a, E: FlowEncoder>(path: &'a Path) -> AsyncResult<()>;
+    fn load_and_migrate_async<E: FlowEncoder>(path: &Path) -> AsyncResult<T>;
+    fn migrate_async<E: FlowEncoder>(path: &Path) -> AsyncResult<()>;
 }
 
 pub trait Bytes<T> {

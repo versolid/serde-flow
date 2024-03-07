@@ -2,11 +2,7 @@ extern crate proc_macro;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{
-    parse_macro_input,
-    spanned::Spanned,
-    DeriveInput, Ident
-};
+use syn::{parse_macro_input, spanned::Spanned, DeriveInput, Ident};
 
 #[proc_macro_derive(Flow, attributes(flow, variants))]
 pub fn flow_derive(input: TokenStream) -> TokenStream {
@@ -20,7 +16,7 @@ pub fn flow_derive(input: TokenStream) -> TokenStream {
             return TokenStream::new();
         }
     };
-    
+
     let flow = flow_gen.generate();
     // println!("Flow \n{}", flow);
     flow.into()
@@ -153,7 +149,7 @@ impl FlowGenerator {
                 }
             };
         }
-        
+
         if self.is_nonbloking {
             generated = quote! {
                 #generated
@@ -228,7 +224,7 @@ impl FlowGenerator {
                 }
             };
         }
-        
+
         if self.is_nonbloking {
             generated = quote! {
                 #generated
@@ -241,7 +237,7 @@ impl FlowGenerator {
                             Ok(object)
                         })
                     }
-                    fn migrate_async<'a, E: serde_flow::encoder::FlowEncoder>(path: &'a std::path::Path) -> serde_flow::flow::AsyncResult<()> {
+                    fn migrate_async<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::AsyncResult<()> {
                         std::boxed::Box::pin(async {
                             use serde_flow::flow::FileAsync;
                             let object = #struct_name::load_from_path_async::<E>(path).await?;
@@ -254,11 +250,15 @@ impl FlowGenerator {
         generated
     }
 
-    fn component_load_from_path(&self, is_zerocopy: bool, is_bloking: bool) -> proc_macro2::TokenStream {
+    fn component_load_from_path(
+        &self,
+        is_zerocopy: bool,
+        is_bloking: bool,
+    ) -> proc_macro2::TokenStream {
         let struct_name = self.struct_name.clone();
         let current_variant = self.variant;
         let file_read = self.component_generate_fs_read(is_bloking);
-        
+
         // NON zerocopy
         if !is_zerocopy {
             // let current_flow_id = gen_variant_id_name(&struct_name);
@@ -297,18 +297,18 @@ impl FlowGenerator {
                     fn load_from_path<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::FlowResult<#struct_name> {
                         #func_body
                     }
-                }
+                };
             }
             return quote! {
-                fn load_from_path_async<'a, E: serde_flow::encoder::FlowEncoder>(path: &'a std::path::Path) -> serde_flow::flow::AsyncResult<#struct_name> {
+                fn load_from_path_async<E: serde_flow::encoder::FlowEncoder>(path: &std::path::Path) -> serde_flow::flow::AsyncResult<#struct_name> {
                     std::boxed::Box::pin(async move { #func_body })
                 }
-            }
-        }         
+            };
+        }
 
         // zerocopy
         let variants = self.variants.clone().unwrap_or_default();
-        let variants: Vec<proc_macro2::TokenStream> = variants 
+        let variants: Vec<proc_macro2::TokenStream> = variants
             .into_iter()
             .map(|i| {
                 let const_variant_id_name = gen_variant_id_name(&i);
@@ -358,8 +358,12 @@ impl FlowGenerator {
             }
         }
     }
-    
-    fn component_save_to_path(&self, is_zerocopy: bool, is_bloking: bool) -> proc_macro2::TokenStream {
+
+    fn component_save_to_path(
+        &self,
+        is_zerocopy: bool,
+        is_bloking: bool,
+    ) -> proc_macro2::TokenStream {
         let struct_name = self.struct_name.clone();
         let current_variant = self.variant;
         let file_write = self.component_generate_fs_write(is_bloking);
@@ -380,14 +384,13 @@ impl FlowGenerator {
                     }
                 };
             }
-            
+
             return quote! {
                 fn save_to_path_async<'a, E: serde_flow::encoder::FlowEncoder>(&'a self, path: &'a std::path::Path) -> serde_flow::flow::AsyncResult<()> {
                     std::boxed::Box::pin(async move { #func_body })
                 }
             };
         }
-
 
         // Zerocopy
         let func_body = quote! {
@@ -418,8 +421,8 @@ impl FlowGenerator {
             return quote! {
                 let mut bytes = std::fs::read(path)?;
             };
-        } 
-        
+        }
+
         #[cfg(feature = "async-std")]
         {
             return quote! {
@@ -431,14 +434,14 @@ impl FlowGenerator {
             let mut bytes = tokio::fs::read(path).await?;
         }
     }
-    
+
     fn component_generate_fs_write(&self, is_bloking: bool) -> proc_macro2::TokenStream {
         if is_bloking {
             return quote! {
                 std::fs::write(path, &total_bytes)?;
             };
-        } 
-        
+        }
+
         #[cfg(feature = "async-std")]
         {
             return quote! {
