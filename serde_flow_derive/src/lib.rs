@@ -605,5 +605,5 @@ fn gen_variant_id_name(iden: &Ident) -> Ident {
 }
 
 fn gen_variant_dto_name(ident: &Ident) -> Ident {
-    Ident::new(&format!("{ident}FlowDto"), proc_macro2::Span::call_site())
+    Ident::new(&format!("{ident}_FlowDto"), proc_macro2::Span::call_site())
 }

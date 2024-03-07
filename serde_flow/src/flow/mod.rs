@@ -2,12 +2,12 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 use crate::encoder::FlowEncoder;
 use crate::error::SerdeFlowError;
-use std::{future::Future, path::Path};
+use std::path::Path;
 
 #[cfg(feature = "zerocopy")]
 pub mod zerocopy;
 
-pub type FlowResult<T> = Result<T, SerdeFlowError>;
+pub type FlowResult<T> = std::result::Result<T, SerdeFlowError>;
 pub type AsyncResult<'a, T> = futures_util::future::BoxFuture<'a, FlowResult<T>>;
 
 pub trait File<T: Serialize + DeserializeOwned> {

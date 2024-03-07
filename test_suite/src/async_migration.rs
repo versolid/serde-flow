@@ -45,7 +45,25 @@ impl From<CarV2> for Car {
 }
 
 #[tokio::test]
-async fn test_v2_load_from_path() {
+async fn test_save_to_path() {
+    let car_v2 = CarV2 {
+        brand: "BMW".to_string(),
+        model: "x3".to_string(),
+        price: 45000,
+    };
+
+    let temp_dir = tempdir().unwrap();
+    let path = temp_dir.path().to_path_buf().join("car");
+
+    let result: std::result::Result<(), _> = car_v2
+        .save_to_path_async::<bincode::Encoder>(path.as_path())
+        .await;
+
+    assert!(result.is_ok());
+}
+
+#[tokio::test]
+async fn test_load_from_path() {
     let car_v2 = CarV2 {
         brand: "BMW".to_string(),
         model: "x3".to_string(),
