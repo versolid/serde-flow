@@ -5,11 +5,11 @@ edition = "2021"
 authors = ["Ivan Ermolaev <ermolaevym@gmail.com>"]
 license = "MIT"
 readme = "README.md"
-description = "Helps to migrate serde objects"
+description = "Simplifying migration for serde and zero-copy entities"
 homepage = "https://github.com/versolid/serde-flow"
 repository = "https://github.com/versolid/serde-flow"
 documentation = "https://docs.rs/serde-flow"
-keywords = ["serde", "migration"]
+keywords = ["flow", "serde", "serialization", "migration"]
 categories = ["encoding", "network-programming"]
 
 [lib]

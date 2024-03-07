@@ -9,7 +9,7 @@ description = "Helps to migrate serde objects"
 homepage = "https://github.com/versolid/serde-flow"
 repository = "https://github.com/versolid/serde-flow"
 documentation = "https://docs.rs/serde-flow"
-keywords = ["serde", "migration"]
+keywords = ["flow", "serde", "serialization", "migration"]
 categories = ["encoding", "network-programming"]
 
 [lib]
