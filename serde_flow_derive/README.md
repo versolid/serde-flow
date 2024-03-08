@@ -87,4 +87,4 @@ let user = User::load_from_path::<bincode::Encoder>(path.as_path()).unwrap();
 ```
 
 ## 📜 License
-Bitwark is open-source software, freely available under the MIT License.
+Serde-flow is open-source software, freely available under the MIT License.
