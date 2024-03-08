@@ -10,6 +10,7 @@ serde = { version = "1.0.197", features = ["derive"]}
 serde_flow = { path = "../serde_flow", features = ["zerocopy", "json", "tokio-fs"] }
 rkyv = { version = "0.7.44", features = ["validation"] }
 tokio = { version = "1.36.0", features = ["full"] }
+memmap2 = { version = "0.9.4" }
 tempfile = "3"
 
 [dev-dependencies]

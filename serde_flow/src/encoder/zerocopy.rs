@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::{cell::RefCell, pin::Pin, sync::Mutex};
 
 use crate::error::SerdeFlowError;
 use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
@@ -105,5 +105,50 @@ where
 
         let borrow = self.archived.borrow();
         borrow.ok_or(SerdeFlowError::Undefined)
+    }
+}
+
+enum ReaderRef<'a, T>
+where
+    T: rkyv::Archive,
+{
+    Archive(&'a rkyv::Archived<T>),
+    None,
+}
+
+pub struct ReaderMemmap<'a, T: rkyv::Archive> {
+    bytes: memmap2::MmapMut,
+    archived: RefCell<ReaderRef<'a, T>>,
+}
+
+impl<'a, T: rkyv::Archive> ReaderMemmap<'a, T>
+where
+    T: rkyv::Archive,
+    T::Archived: for<'b> rkyv::CheckBytes<rkyv::validation::validators::DefaultValidator<'b>>,
+{
+    #[must_use]
+    pub fn new(bytes: memmap2::MmapMut) -> Self {
+        Self {
+            bytes,
+            archived: RefCell::new(ReaderRef::None),
+        }
+    }
+
+    pub fn archive(&'a self) -> Result<&'a T::Archived, SerdeFlowError> {
+        let borrow = self.archived.borrow();
+        if let ReaderRef::Archive(archived) = *borrow {
+            return Ok(archived);
+        }
+        drop(borrow);
+
+        let archive: &'a T::Archived = rkyv::check_archived_root::<T>(&self.bytes)
+            .map_err(|_| SerdeFlowError::ParsingFailed)?;
+        self.archived.replace(ReaderRef::Archive(archive));
+
+        let borrow = self.archived.borrow();
+        let ReaderRef::Archive(archived) = *borrow else {
+            return Err(SerdeFlowError::Undefined);
+        };
+        Ok(archived)
     }
 }
