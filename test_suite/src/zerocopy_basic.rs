@@ -77,6 +77,9 @@ fn struct_serialize_archive_memcopy_change() {
     let bytes = Encoder::serialize::<User>(&user).unwrap();
     std::fs::write(path.as_path(), &bytes);
 
+    let mut test_map = HashMap::<String, u16>::new();
+    test_map.insert("John".to_string(), 512);
+
     let file = OpenOptions::new()
         .read(true)
         .write(true)
@@ -85,12 +88,15 @@ fn struct_serialize_archive_memcopy_change() {
         .unwrap();
 
     let mut mmap = unsafe { MmapMut::map_mut(&file).unwrap() };
-    let mut user_pin = unsafe { rkyv::archived_root_mut::<User>(Pin::new(mmap.as_mut())) };
-    let mut user_mut = unsafe { user_pin.as_mut().get_unchecked_mut() };
-    user_mut.amount = 512;
-    drop(user_mut);
-    drop(user_pin);
-    mmap.flush().unwrap();
+    let mut reader_mut = ReaderMemmap::<User>::new(mmap);
+
+    reader_mut
+        .archive_mut(|user| {
+            if let Some(value) = test_map.get(user.first_name.as_str()) {
+                user.amount = *value;
+            }
+        })
+        .unwrap();
 
     let file = OpenOptions::new()
         .read(true)
@@ -98,10 +104,10 @@ fn struct_serialize_archive_memcopy_change() {
         .create(true)
         .open(path.as_path())
         .unwrap();
-    let mmap = unsafe { MmapMut::map_mut(&file).unwrap() };
-    let reader = ReaderMemmap::<User>::new(mmap);
-    let user_archived = reader.archive().unwrap();
 
+    let mut mmap = unsafe { MmapMut::map_mut(&file).unwrap() };
+    let mut reader_mut = ReaderMemmap::<User>::new(mmap);
+    let user_archived = reader_mut.archive().unwrap();
     assert_eq!(user_archived.first_name, "John".to_string());
     assert_eq!(user_archived.last_name, "Doe".to_string());
     assert_eq!(user_archived.amount, 512);

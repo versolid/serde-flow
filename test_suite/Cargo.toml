@@ -11,6 +11,7 @@ serde_flow = { path = "../serde_flow", features = ["zerocopy", "json", "tokio-fs
 rkyv = { version = "0.7.44", features = ["validation"] }
 tokio = { version = "1.36.0", features = ["full"] }
 memmap2 = { version = "0.9.4" }
+crc = "3.0.1"
 tempfile = "3"
 
 [dev-dependencies]
@@ -20,4 +21,8 @@ serde_flow_derive = { path = "../serde_flow_derive" }
 
 [[bench]]
 name = "comparison"
+harness = true
+
+[[bench]]
+name = "decoding"
 harness = false

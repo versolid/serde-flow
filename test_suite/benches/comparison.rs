@@ -7,8 +7,8 @@ use serde_flow::{
 };
 use tempfile::tempdir;
 
-#[derive(serde::Serialize, serde::Deserialize, serde_flow::FileFlow, serde_flow::FlowVariant)]
-#[variant(1)]
+#[derive(serde::Serialize, serde::Deserialize, serde_flow::Flow)]
+#[flow(variant = 1, file)]
 pub struct ObjectTopSerde {
     pub field1: String,
     pub field2: String,
@@ -22,16 +22,9 @@ pub struct ObjectSerde {
     pub number2: u32,
 }
 
-#[derive(
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    serde_flow::FileFlowZeroCopy,
-    serde_flow::FlowVariant,
-)]
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, serde_flow::Flow)]
 #[archive(check_bytes)]
-#[zerocopy]
-#[variant(1)]
+#[flow(variant = 1, file, zerocopy)]
 pub struct ObjectTopRkyv {
     pub field1: String,
     pub field2: String,
@@ -102,14 +95,14 @@ fn bench_serialization(c: &mut Criterion) {
     let mut group = c.benchmark_group("Deserialize");
     group.bench_function("rkyv archive", |b| {
         b.iter(|| {
-            let response = ObjectTopRkyv::from_path(black_box(rkyv_path.as_path())).unwrap();
+            let response = ObjectTopRkyv::load_from_path(black_box(rkyv_path.as_path())).unwrap();
             black_box(response.archive().unwrap());
         });
     });
 
     group.bench_function("rkyv deserialize", |b| {
         b.iter(|| {
-            let response = ObjectTopRkyv::from_path(black_box(rkyv_path.as_path())).unwrap();
+            let response = ObjectTopRkyv::load_from_path(black_box(rkyv_path.as_path())).unwrap();
             black_box(response.deserialize().unwrap());
         });
     });

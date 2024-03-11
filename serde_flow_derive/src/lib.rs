@@ -29,6 +29,7 @@ struct FlowGenerator {
     is_nonbloking: bool,
     is_bloking: bool,
     is_zerocopy: bool,
+    is_verify_write: bool,
     variants: Option<Vec<Ident>>,
     fields_gen: FieldsGenerator,
 }
@@ -256,7 +257,7 @@ impl FlowGenerator {
     ) -> proc_macro2::TokenStream {
         let struct_name = self.struct_name.clone();
         let current_variant = self.variant;
-        let file_read = self.component_generate_fs_read(is_bloking);
+        let file_read = self.component_fs_read(is_bloking);
 
         // NON zerocopy
         if !is_zerocopy {
@@ -365,7 +366,7 @@ impl FlowGenerator {
     ) -> proc_macro2::TokenStream {
         let struct_name = self.struct_name.clone();
         let current_variant = self.variant;
-        let file_write = self.component_generate_fs_write(is_bloking);
+        let try_verify_write = self.component_verify_write(is_bloking);
 
         if !is_zerocopy {
             let current_flow_id = gen_variant_id_name(&struct_name);
@@ -373,8 +374,7 @@ impl FlowGenerator {
             let func_body = quote! {
                 let mut flow_object = #current_dto_name::new(#current_flow_id, self);
                 let total_bytes = E::serialize::<#current_dto_name>(&flow_object)?;
-                #file_write
-                Ok(())
+                #try_verify_write
             };
             if is_bloking {
                 return quote! {
@@ -396,8 +396,7 @@ impl FlowGenerator {
             let mut total_bytes = #current_variant.to_le_bytes().to_vec();
             let bytes = serde_flow::encoder::zerocopy::Encoder::serialize::<#struct_name>(self)?;
             total_bytes.extend_from_slice(&bytes);
-            #file_write
-            Ok(())
+            #try_verify_write
         };
 
         if is_bloking {
@@ -409,13 +408,13 @@ impl FlowGenerator {
         } else {
             quote! {
                 fn save_to_path_async(&self, path: &std::path::Path) -> serde_flow::flow::AsyncResult<()> {
-                    #func_body
+                    std::boxed::Box::pin(async { #func_body })
                 }
             }
         }
     }
 
-    fn component_generate_fs_read(&self, is_bloking: bool) -> proc_macro2::TokenStream {
+    fn component_fs_read(&self, is_bloking: bool) -> proc_macro2::TokenStream {
         if is_bloking {
             return quote! {
                 let mut bytes = std::fs::read(path)?;
@@ -434,7 +433,7 @@ impl FlowGenerator {
         }
     }
 
-    fn component_generate_fs_write(&self, is_bloking: bool) -> proc_macro2::TokenStream {
+    fn component_fs_write(&self, is_bloking: bool) -> proc_macro2::TokenStream {
         if is_bloking {
             return quote! {
                 std::fs::write(path, &total_bytes)?;
@@ -449,6 +448,33 @@ impl FlowGenerator {
         }
         quote! {
             tokio::fs::write(path, &total_bytes).await?;
+        }
+    }
+
+    fn component_verify_write(&self, is_bloking: bool) -> proc_macro2::TokenStream {
+        let file_read = self.component_fs_read(is_bloking);
+        let file_write = self.component_fs_write(is_bloking);
+
+        if !self.is_verify_write {
+            return quote! {
+                #file_write
+                Ok(())
+            };
+        }
+
+        quote! {
+            let checksum = serde_flow::encoder::CASTAGNOLI.checksum(&total_bytes);
+            let mut attempts = 3;
+            while attempts > 0 {
+                #file_write
+                #file_read
+                let written_checksum = serde_flow::encoder::CASTAGNOLI.checksum(&bytes);
+                if checksum == written_checksum {
+                    return Ok(());
+                }
+                attempts -= 1;
+            }
+            Err(serde_flow::error::SerdeFlowError::FailedToWrite)
         }
     }
 
@@ -488,6 +514,7 @@ impl FlowGenerator {
             is_nonbloking: false,
             is_bloking: false,
             is_zerocopy: false,
+            is_verify_write: false,
             variants: None,
             fields_gen,
         }
@@ -515,7 +542,7 @@ impl FlowGenerator {
                 if meta.path.is_ident("file") {
                     self.is_file = true;
                     if meta.input.peek(syn::token::Paren) {
-                        return meta.parse_nested_meta(|file_meta| {
+                        meta.parse_nested_meta(|file_meta| {
                             if file_meta.path.is_ident("blocking") {
                                 self.is_nonbloking = true;
                                 return Ok(());
@@ -524,13 +551,18 @@ impl FlowGenerator {
                                 self.is_nonbloking = true;
                                 return Ok(());
                             }
+                            if file_meta.path.is_ident("verify_write") {
+                                self.is_verify_write = true;
+                                return Ok(());
+                            }
                             Err(file_meta.error("unsupported file property"))
-                        });
+                        })?;
                     }
                     // set by default blocking IO
                     if !self.is_bloking && !self.is_nonbloking {
                         self.is_bloking = true;
                     }
+
                     return Ok(());
                 }
 

@@ -1,6 +1,7 @@
-use std::{cell::RefCell, pin::Pin, sync::Mutex};
+use std::{cell::RefCell, pin::Pin};
 
 use crate::error::SerdeFlowError;
+use memmap2::MmapMut;
 use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 
 pub type DefaultSerializer = rkyv::ser::serializers::AllocSerializer<4096>;
@@ -108,17 +109,9 @@ where
     }
 }
 
-enum ReaderRef<'a, T>
-where
-    T: rkyv::Archive,
-{
-    Archive(&'a rkyv::Archived<T>),
-    None,
-}
-
 pub struct ReaderMemmap<'a, T: rkyv::Archive> {
-    bytes: memmap2::MmapMut,
-    archived: RefCell<ReaderRef<'a, T>>,
+    mmap: MmapMut,
+    archived: RefCell<Option<&'a rkyv::Archived<T>>>,
 }
 
 impl<'a, T: rkyv::Archive> ReaderMemmap<'a, T>
@@ -129,26 +122,35 @@ where
     #[must_use]
     pub fn new(bytes: memmap2::MmapMut) -> Self {
         Self {
-            bytes,
-            archived: RefCell::new(ReaderRef::None),
+            mmap: bytes,
+            archived: RefCell::new(None),
         }
     }
 
     pub fn archive(&'a self) -> Result<&'a T::Archived, SerdeFlowError> {
         let borrow = self.archived.borrow();
-        if let ReaderRef::Archive(archived) = *borrow {
-            return Ok(archived);
+        if borrow.is_some() {
+            return borrow.ok_or(SerdeFlowError::Undefined);
         }
         drop(borrow);
 
-        let archive: &'a T::Archived = rkyv::check_archived_root::<T>(&self.bytes)
+        let archive: &'a T::Archived = rkyv::check_archived_root::<T>(&self.mmap)
             .map_err(|_| SerdeFlowError::ParsingFailed)?;
-        self.archived.replace(ReaderRef::Archive(archive));
+        self.archived.replace(Some(archive));
 
         let borrow = self.archived.borrow();
-        let ReaderRef::Archive(archived) = *borrow else {
-            return Err(SerdeFlowError::Undefined);
-        };
-        Ok(archived)
+        borrow.ok_or(SerdeFlowError::Undefined)
+    }
+
+    pub fn archive_mut<F>(&'a mut self, f: F) -> Result<(), SerdeFlowError>
+    where
+        F: FnOnce(&mut rkyv::Archived<T>),
+    {
+        let pin = unsafe { Pin::new_unchecked(self.mmap.as_mut()) };
+        let user_pin = unsafe { rkyv::archived_root_mut::<T>(pin) };
+        let user_mut = unsafe { user_pin.get_unchecked_mut() };
+        f(user_mut);
+        self.mmap.flush().map_err(|_| SerdeFlowError::Undefined)?;
+        Ok(())
     }
 }

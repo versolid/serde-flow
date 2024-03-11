@@ -17,6 +17,9 @@ pub enum SerdeFlowError {
     /// Indicates that the format of the object is invalid.
     #[error("Invalid data format")]
     FormatInvalid,
+    /// Failed to write bytes on the disk
+    #[error("Failed to write bytes on the disk")]
+    FailedToWrite,
     /// Indicates an undefined error.
     #[error("An undefined error occurred")]
     Undefined,
