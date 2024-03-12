@@ -21,8 +21,8 @@ serde_flow_derive = { path = "../serde_flow_derive" }
 
 [[bench]]
 name = "comparison"
-harness = true
+harness = false
 
 [[bench]]
 name = "decoding"
-harness = false
+harness = true

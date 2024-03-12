@@ -21,23 +21,6 @@ struct PaymentSerde {
     pub number2: u64,
 }
 
-use crc::{Algorithm, Crc, CRC_16_IBM_SDLC, CRC_32_ISCSI};
-
-pub const CASTAGNOLI: Crc<u32> = Crc::<u32>::new(&CRC_32_ISCSI);
-
-pub fn serialize_check<T: serde::Serialize>(path: &Path, value: &T) -> Result<(), SerdeFlowError> {
-    let bytes = serde_flow::encoder::bincode::Encoder::serialize(value)?;
-    let checksum = CASTAGNOLI.checksum(&bytes);
-    std::fs::write(path, bytes).unwrap();
-
-    let bytes = std::fs::read(path).unwrap();
-    let io_checksum = CASTAGNOLI.checksum(&bytes);
-    if checksum != io_checksum {
-        return Err(SerdeFlowError::Undefined);
-    }
-    Ok(())
-}
-
 fn bench_encoding(c: &mut Criterion) {
     let temp_dir = tempdir().unwrap();
     let rkyv_path = temp_dir.path().to_path_buf().join("rkyv");
@@ -97,17 +80,6 @@ fn bench_encoding(c: &mut Criterion) {
             payment.number2 = 2;
             let bytes = serde_flow::encoder::bincode::Encoder::serialize(&payment).unwrap();
             std::fs::write(serde_path.as_path(), bytes).unwrap();
-        });
-    });
-    group.bench_function("bincode with check", |b| {
-        b.iter(|| {
-            let bytes = black_box(std::fs::read(serde_path.as_path()).unwrap());
-            let mut payment = black_box(
-                serde_flow::encoder::bincode::Encoder::deserialize::<PaymentSerde>(&bytes).unwrap(),
-            );
-            payment.number1 = 2;
-            payment.number2 = 2;
-            serialize_check(serde_path.as_path(), &payment).unwrap();
         });
     });
     group.finish();

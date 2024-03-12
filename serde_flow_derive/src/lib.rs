@@ -257,7 +257,7 @@ impl FlowGenerator {
     ) -> proc_macro2::TokenStream {
         let struct_name = self.struct_name.clone();
         let current_variant = self.variant;
-        let file_read = self.component_fs_read(is_bloking);
+        let file_read = Self::component_fs_read(is_bloking);
 
         // NON zerocopy
         if !is_zerocopy {
@@ -414,7 +414,7 @@ impl FlowGenerator {
         }
     }
 
-    fn component_fs_read(&self, is_bloking: bool) -> proc_macro2::TokenStream {
+    fn component_fs_read(is_bloking: bool) -> proc_macro2::TokenStream {
         if is_bloking {
             return quote! {
                 let mut bytes = std::fs::read(path)?;
@@ -433,7 +433,7 @@ impl FlowGenerator {
         }
     }
 
-    fn component_fs_write(&self, is_bloking: bool) -> proc_macro2::TokenStream {
+    fn component_fs_write(is_bloking: bool) -> proc_macro2::TokenStream {
         if is_bloking {
             return quote! {
                 std::fs::write(path, &total_bytes)?;
@@ -452,8 +452,8 @@ impl FlowGenerator {
     }
 
     fn component_verify_write(&self, is_bloking: bool) -> proc_macro2::TokenStream {
-        let file_read = self.component_fs_read(is_bloking);
-        let file_write = self.component_fs_write(is_bloking);
+        let file_read = Self::component_fs_read(is_bloking);
+        let file_write = Self::component_fs_write(is_bloking);
 
         if !self.is_verify_write {
             return quote! {

@@ -6,23 +6,24 @@ Serde Flow - Migration Framework
 `serde_flow` is a Rust library that simplifies managing changes in *serialized* data formats during software development, enabling seamless file migration and maintaining version compatibility.
 
 ## Features
-1. **Serialize migration** with `#[variants(UserV1, UserV2)]`
-2. **Serialize to file** with `#[flow(variant = 1, file)]`
-3. **Async** with `#[flow(variant = 1, file(nonbloking))]`
-4. **Zerocopy** with `#[flow(variant = 1, file, zerocopy)]`
+- Versioning of serialize/deserialize entities
+- Migration of serialized bytes
+- Async migration
+- Zerocopy deserialization
+- Data Integrity Verification
 
 ## Basics
 Serde Flow primarily consists of three major components:
-1. `#[derive(Flow)]`: To utilize Serde Flow, you must annotate your class with `serde_flow::Flow`. This annotation serves as a signal to the library that the class is eligible for data migration.
-2. `#[flow(variant = N)]`: Utilize this annotation to specify the version of the entity. Simply replace N with a `u16` number that represents the version. This helps in managing different versions of your data structures efficiently.
+1. `#[derive(Flow)]`: (Mandatory) To utilize Serde Flow, you must annotate your class with `serde_flow::Flow`. This annotation serves as a signal to the library that the class is eligible for data migration.
+2. `#[flow(variant = N)]`: (Mandatory) Utilize this annotation to specify the version of the entity. Simply replace N with a `u16` number that represents the version. This helps in managing different versions of your data structures efficiently.
 3. `#[variants(StructA, StructB, ...)]` (*Optional*): This annotation is optional but highly recommended for comprehensive data migration management. Here, you list the structs that are essential for migrating into the struct highlighted with this annotation. *To ensure, you need to implement `From<VariantStruct>` for all structs listed in `#[variants(..)]`*.
 
 ## 🛠️ Getting Started
 ```toml
 [dependencies]
-serde_flow = "1.0.0"
+serde_flow = "1.1.0"
 ```
-Imagine you have a `User` struct that has evolved over time through versions `UserV1` -> `UserV2` -> `User` (current), while the previous versions `UserV1` and `UserV2` still exist elsewhere. To manage this scenario effectively, follow these steps:
+Imagine you have a `User` struct (3d variant) that has evolved over time through versions `UserV1` -> `UserV2` -> `User` (current), while the previous versions `UserV1` and `UserV2` still exist elsewhere. To manage this scenario effectively, follow these steps:
 1. **Versioning:** Start by setting proper versioning from the beginning. The initial creation of the user should be annotated with `#[flow(variant = 1)]`.
 2. **Incremental Versioning:** As you iterate and create subsequent versions, ensure to increment the version in the annotations, such as `#[flow(variant = 2)]` for the next version.
 3. **Migration Preparation:** When you're ready to migrate to a new version, add the `#[variants(UserV1, UserV2)]` annotation to the main User struct. It's essential to include all previous variants that you intend to migrate from.

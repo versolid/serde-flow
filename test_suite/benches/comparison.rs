@@ -8,7 +8,7 @@ use serde_flow::{
 use tempfile::tempdir;
 
 #[derive(serde::Serialize, serde::Deserialize, serde_flow::Flow)]
-#[flow(variant = 1, file)]
+#[flow(variant = 1, file(verify_write))]
 pub struct ObjectTopSerde {
     pub field1: String,
     pub field2: String,
@@ -22,7 +22,7 @@ pub struct ObjectSerde {
     pub number2: u32,
 }
 
-#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, serde_flow::Flow)]
+#[derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, serde_flow::Flow, Clone)]
 #[archive(check_bytes)]
 #[flow(variant = 1, file, zerocopy)]
 pub struct ObjectTopRkyv {
@@ -79,7 +79,7 @@ fn create_rkyv() -> ObjectTopRkyv {
     }
 }
 
-fn bench_serialization(c: &mut Criterion) {
+fn bench_deserialization(c: &mut Criterion) {
     let rkyv_file = create_rkyv();
     let serde_file = create_serde();
 
@@ -113,6 +113,31 @@ fn bench_serialization(c: &mut Criterion) {
                 ObjectTopSerde::load_from_path::<bincode::Encoder>(black_box(serde_path.as_path()))
                     .unwrap(),
             );
+        });
+    });
+    group.finish();
+}
+
+fn bench_serialization(c: &mut Criterion) {
+    let rkyv_file = create_rkyv();
+    let serde_file = create_serde();
+
+    let temp_dir = tempdir().unwrap();
+    let rkyv_path = temp_dir.path().to_path_buf().join("rkyv");
+    let serde_path = temp_dir.path().to_path_buf().join("serde");
+
+    let mut group = c.benchmark_group("Serialize");
+    group.bench_function("rkyv", |b| {
+        b.iter(|| {
+            rkyv_file.save_to_path(rkyv_path.as_path()).unwrap();
+        });
+    });
+
+    group.bench_function("bincode deserialize", |b| {
+        b.iter(|| {
+            serde_file
+                .save_to_path::<bincode::Encoder>(serde_path.as_path())
+                .unwrap();
         });
     });
     group.finish();
