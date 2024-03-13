@@ -30,6 +30,8 @@ rkyv = { version = "0.7.44", optional = true }
 
 [dev-dependencies]
 serde_flow_derive = { version = "1.0.0", path = "../serde_flow_derive" }
+tokio = { version = "1.36.0", features = ["full"] }
+tempfile = "3"
 
 [features]
 default = ["tokio-fs", "bincode"]

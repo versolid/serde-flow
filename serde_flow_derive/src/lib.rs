@@ -37,6 +37,7 @@ struct FlowGenerator {
 impl FlowGenerator {
     fn generate(&self) -> proc_macro2::TokenStream {
         let previous = self.generate_ids();
+        let previous = self.generate_bytes(previous);
         self.generate_file(previous)
     }
 
@@ -79,6 +80,43 @@ impl FlowGenerator {
                     #struct_name {
                         #(#field_names: item.#field_names,)*
                     }
+                }
+            }
+        }
+    }
+
+    fn generate_bytes(&self, previous: proc_macro2::TokenStream) -> proc_macro2::TokenStream {
+        if !self.is_bytes {
+            return previous;
+        }
+
+        let struct_name = self.struct_name.clone();
+        let encode_with_version = self.encode_with_version();
+        let decode_with_version = self.decode_with_version();
+
+        if self.is_zerocopy {
+            return quote! {
+                #previous
+                impl serde_flow::flow::zerocopy::Bytes<#struct_name> for #struct_name {
+                    fn encode(&self) -> serde_flow::flow::FlowResult<Vec<u8>> {
+                        #encode_with_version
+                        Ok(total_bytes)
+                    }
+                    fn decode(bytes: Vec<u8>) -> serde_flow::flow::FlowResult<Reader<#struct_name>> {
+                        #decode_with_version
+                    }
+                }
+            };
+        }
+        quote! {
+            #previous
+            impl serde_flow::flow::Bytes<#struct_name> for #struct_name {
+                fn encode<E: serde_flow::encoder::FlowEncoder>(&self) -> serde_flow::flow::FlowResult<Vec<u8>> {
+                    #encode_with_version
+                    Ok(total_bytes)
+                }
+                fn decode<E: serde_flow::encoder::FlowEncoder>(bytes: &[u8]) -> serde_flow::flow::FlowResult<#struct_name> {
+                    #decode_with_version
                 }
             }
         }
@@ -256,41 +294,18 @@ impl FlowGenerator {
         is_bloking: bool,
     ) -> proc_macro2::TokenStream {
         let struct_name = self.struct_name.clone();
-        let current_variant = self.variant;
         let file_read = Self::component_fs_read(is_bloking);
+        let decode_with_version = self.decode_with_version();
 
         // NON zerocopy
         if !is_zerocopy {
-            // let current_flow_id = gen_variant_id_name(&struct_name);
-            let current_dto_name = gen_variant_dto_name(&struct_name);
-            let variants: Vec<proc_macro2::TokenStream> = self
-                .variants
-                .clone()
-                .unwrap_or_default()
-                .into_iter()
-                .map(|variant| {
-                    let const_flow_id_name = gen_variant_id_name(&variant);
-                    let variant_dto_name = gen_variant_dto_name(&variant);
-                    quote! {
-                        #const_flow_id_name => E::deserialize::<#variant_dto_name>(&bytes).map(#variant::from).map(#struct_name::from),
-                    }
-                })
-                .collect();
             let func_body = quote! {
                 if !path.exists() {
                     return Err(serde_flow::error::SerdeFlowError::FileNotFound);
                 }
 
                 #file_read
-                if bytes.len() < 2 {
-                    return Err(serde_flow::error::SerdeFlowError::FormatInvalid);
-                }
-                let flow_id_object = E::deserialize::<serde_flow::flow::FlowId>(&bytes)?;
-                match flow_id_object.flow_id {
-                    #current_variant => E::deserialize::<#current_dto_name>(&bytes).map(#struct_name::from),
-                    #(#variants)*
-                    _ => Err(serde_flow::error::SerdeFlowError::VariantNotFound),
-                }
+                #decode_with_version
             };
             if is_bloking {
                 return quote! {
@@ -307,42 +322,12 @@ impl FlowGenerator {
         }
 
         // zerocopy
-        let variants = self.variants.clone().unwrap_or_default();
-        let variants: Vec<proc_macro2::TokenStream> = variants
-            .into_iter()
-            .map(|i| {
-                let const_variant_id_name = gen_variant_id_name(&i);
-                quote! {
-                    #const_variant_id_name => {
-                        use serde_flow::flow::zerocopy::File;
-                        let old_object = serde_flow::encoder::zerocopy::Reader::<#i>::new(bytes).deserialize()?;
-                        let converted = #struct_name::from(old_object);
-                        converted.save_to_path(path)?;
-                        #struct_name::load_from_path(path)
-                    },
-                }
-            })
-            .collect();
-
         let func_body = quote! {
             if !path.exists() {
                 return Err(serde_flow::error::SerdeFlowError::FileNotFound);
             }
-
             #file_read
-            if bytes.len() < 2 {
-                return Err(serde_flow::error::SerdeFlowError::FormatInvalid);
-            }
-            // Extract the first two bytes and convert them to a u16 in little-endian format
-            let flow_id = u16::from_le_bytes([bytes[0], bytes[1]]);
-
-            // Remove the first two bytes from the original Vec<u8>
-            let bytes = bytes.split_off(2);
-            match flow_id {
-                #current_variant => Ok(serde_flow::encoder::zerocopy::Reader::<#struct_name>::new(bytes)),
-                #(#variants)*
-                _ => Err(serde_flow::error::SerdeFlowError::VariantNotFound),
-            }
+            #decode_with_version
         };
         if is_bloking {
             quote! {
@@ -352,8 +337,11 @@ impl FlowGenerator {
             }
         } else {
             quote! {
-                fn load_from_path_async(path: &std::path::Path) -> serde_flow::flow::AsyncResult<serde_flow::encoder::zerocopy::Reader<#struct_name>> {
-                    std::boxed::Box::pin(async { #func_body })
+                fn load_from_path_async<'a>(path_to: std::path::PathBuf) -> serde_flow::flow::AsyncResult<'a, serde_flow::encoder::zerocopy::Reader<'a, #struct_name>> {
+                    std::boxed::Box::pin(async move {
+                        let path = path_to.as_path();
+                        #func_body
+                    })
                 }
             }
         }
@@ -364,18 +352,15 @@ impl FlowGenerator {
         is_zerocopy: bool,
         is_bloking: bool,
     ) -> proc_macro2::TokenStream {
-        let struct_name = self.struct_name.clone();
-        let current_variant = self.variant;
         let try_verify_write = self.component_verify_write(is_bloking);
 
+        let encode_body = self.encode_with_version();
+        let func_body = quote! {
+            #encode_body
+            #try_verify_write
+        };
+
         if !is_zerocopy {
-            let current_flow_id = gen_variant_id_name(&struct_name);
-            let current_dto_name = gen_variant_dto_name(&struct_name);
-            let func_body = quote! {
-                let mut flow_object = #current_dto_name::new(#current_flow_id, self);
-                let total_bytes = E::serialize::<#current_dto_name>(&flow_object)?;
-                #try_verify_write
-            };
             if is_bloking {
                 return quote! {
                     fn save_to_path<E: serde_flow::encoder::FlowEncoder>(&self, path: &std::path::Path) -> serde_flow::flow::FlowResult<()> {
@@ -391,14 +376,6 @@ impl FlowGenerator {
             };
         }
 
-        // Zerocopy
-        let func_body = quote! {
-            let mut total_bytes = #current_variant.to_le_bytes().to_vec();
-            let bytes = serde_flow::encoder::zerocopy::Encoder::serialize::<#struct_name>(self)?;
-            total_bytes.extend_from_slice(&bytes);
-            #try_verify_write
-        };
-
         if is_bloking {
             quote! {
                 fn save_to_path(&self, path: &std::path::Path) -> serde_flow::flow::FlowResult<()> {
@@ -407,9 +384,99 @@ impl FlowGenerator {
             }
         } else {
             quote! {
-                fn save_to_path_async(&self, path: &std::path::Path) -> serde_flow::flow::AsyncResult<()> {
-                    std::boxed::Box::pin(async { #func_body })
+                fn save_to_path_async(&self, path_to: std::path::PathBuf) -> serde_flow::flow::AsyncResult<()> {
+                    std::boxed::Box::pin(async move {
+                        let path = path_to.as_path();
+                        #func_body
+                    })
                 }
+            }
+        }
+    }
+
+    fn encode_with_version(&self) -> proc_macro2::TokenStream {
+        let struct_name = self.struct_name.clone();
+        let current_variant = self.variant;
+        if self.is_zerocopy {
+            return quote! {
+                let mut total_bytes = #current_variant.to_le_bytes().to_vec();
+                let bytes = serde_flow::encoder::zerocopy::Encoder::serialize::<#struct_name>(self)?;
+                total_bytes.extend_from_slice(&bytes);
+            };
+        }
+
+        // Normal - NON ZeroCopy
+        let current_flow_id = gen_variant_id_name(&struct_name);
+        let current_dto_name = gen_variant_dto_name(&struct_name);
+        quote! {
+            let mut flow_object = #current_dto_name::new(#current_flow_id, self);
+            let total_bytes = E::serialize::<#current_dto_name>(&flow_object)?;
+        }
+    }
+
+    fn decode_with_version(&self) -> proc_macro2::TokenStream {
+        let struct_name = self.struct_name.clone();
+        let current_variant = self.variant;
+
+        if self.is_zerocopy {
+            let variants = self.variants.clone().unwrap_or_default();
+            let variants: Vec<proc_macro2::TokenStream> = variants
+                .into_iter()
+                .map(|i| {
+                    let const_variant_id_name = gen_variant_id_name(&i);
+                    quote! {
+                        #const_variant_id_name => {
+                            use serde_flow::flow::zerocopy::File;
+                            let old_object = serde_flow::encoder::zerocopy::Reader::<#i>::new(bytes).deserialize()?;
+                            let converted = #struct_name::from(old_object);
+                            converted.save_to_path(path)?;
+                            #struct_name::load_from_path(path)
+                        },
+                    }
+                })
+                .collect();
+
+            return quote! {
+                if bytes.len() < 2 {
+                    return Err(serde_flow::error::SerdeFlowError::FormatInvalid);
+                }
+                // Extract the first two bytes and convert them to a u16 in little-endian format
+                let flow_id = u16::from_le_bytes([bytes[0], bytes[1]]);
+
+                // Remove the first two bytes from the original Vec<u8>
+                let bytes = bytes.split_off(2);
+                match flow_id {
+                    #current_variant => Ok(serde_flow::encoder::zerocopy::Reader::<#struct_name>::new(bytes)),
+                    #(#variants)*
+                    _ => Err(serde_flow::error::SerdeFlowError::VariantNotFound),
+                }
+            };
+        }
+
+        // Normal - NON ZeroCopy
+        let current_dto_name = gen_variant_dto_name(&struct_name);
+        let variants: Vec<proc_macro2::TokenStream> = self
+            .variants
+            .clone()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|variant| {
+                let const_flow_id_name = gen_variant_id_name(&variant);
+                let variant_dto_name = gen_variant_dto_name(&variant);
+                quote! {
+                    #const_flow_id_name => E::deserialize::<#variant_dto_name>(&bytes).map(#variant::from).map(#struct_name::from),
+                }
+            })
+            .collect();
+        quote! {
+            if bytes.len() < 2 {
+                return Err(serde_flow::error::SerdeFlowError::FormatInvalid);
+            }
+            let flow_id_object = E::deserialize::<serde_flow::flow::FlowId>(&bytes)?;
+            match flow_id_object.flow_id {
+                #current_variant => E::deserialize::<#current_dto_name>(&bytes).map(#struct_name::from),
+                #(#variants)*
+                _ => Err(serde_flow::error::SerdeFlowError::VariantNotFound),
             }
         }
     }

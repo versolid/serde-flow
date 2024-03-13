@@ -31,8 +31,8 @@ pub trait FileMigrateAsync<T: FileAsync<T>> {
 }
 
 pub trait Bytes<T> {
-    fn encode(&self) -> FlowResult<Vec<u8>>;
-    fn decode(bytes: &[u8]) -> FlowResult<T>;
+    fn encode<E: FlowEncoder>(&self) -> FlowResult<Vec<u8>>;
+    fn decode<E: FlowEncoder>(bytes: &[u8]) -> FlowResult<T>;
 }
 
 #[cfg(feature = "serde")]

@@ -17,7 +17,7 @@
 //! - File Mode
 //! - Bytes Mode
 //! - Both (use them together``#[flow(variant = 1, file, bytes)]``)
-//! 
+//!
 //! #### File Mode
 //!
 //! The File mode helps you work with files on your computer. It can read data from a certain place on your computer, save and load information in files automatically, and can also help update files to the newest version. To use this mode, add a special instruction called ``#[flow(file)]`` above your code. This tells Serde-Flow to treat that part of your code as working with files.
@@ -28,7 +28,8 @@
 //! use serde::{Serialize, Deserialize};
 //! use serde_flow::Flow;
 //! use serde_flow::encoder::bincode;
-//! use serde_flow::flow::{File, FileMigrate}
+//! use serde_flow::flow::{File, FileMigrate};
+//! # use tempfile::tempdir;
 //!
 //! #[derive(Serialize, Deserialize, Flow)]
 //! #[flow(variant = 1, file)]
@@ -36,13 +37,17 @@
 //!     // Your struct fields here
 //!     field: String
 //! }
-//! 
+//! # fn main() {
+//! # let temp_dir = tempdir().unwrap();
+//! # let path_buf = temp_dir.path().to_path_buf().join("car");
+//! # let path = path_buf.as_path();
 //! let object = MyStruct { field: "Something".to_string() };
-//! 
+//!
 //! // save your object to path
-//! object.save_to_file::<bincode::Encoder>(path)?;
+//! object.save_to_path::<bincode::Encoder>(path).unwrap();
 //! // load your object from the path
-//! let object = MyStruct::load_from_file::<bincode::Encoder>(path)?;
+//! let object = MyStruct::load_from_path::<bincode::Encoder>(path).unwrap();
+//! # }
 //! ```
 //!
 //! ### 2. Bytes Mode
@@ -54,7 +59,8 @@
 //! ```rust
 //! use serde::{Serialize, Deserialize};
 //! use serde_flow::Flow;
-//! use serde_flow::flow::{Bytes}
+//! use serde_flow::encoder::bincode;
+//! use serde_flow::flow::{Bytes};
 //!
 //! #[derive(Serialize, Deserialize, Flow)]
 //! #[flow(variant = 1, bytes)]
@@ -62,18 +68,18 @@
 //!     // Your struct fields here
 //!     field: String
 //! }
-//! 
-//! 
+//! # fn main() {
 //! let object = MyStruct { field: "Something".to_string() };
 //! // encode the object into bytes
-//! let bytes = object.encode::<bincode::Encoder>()?;
+//! let bytes = object.encode::<bincode::Encoder>().unwrap();
 //! // decode the object from bytes
-//! let object = MyStruct::decode::<bincode::Encoder>(&bytes)?;
+//! let object = MyStruct::decode::<bincode::Encoder>(&bytes).unwrap();
+//! # }
 //! ```
 //! # Migrations
-//! 
+//!
 //! To use *migrations*, you need to tell the program about different ways your data can be saved (called "variants"). Migrations works well with text formats, like JSON. To do this, add a special instruction called ``[#[variants(StructA, StructB, ...)]`` and list all the ways your data can be saved.
-//! 
+//!
 //! ## Setup ``File Mode`` for Serde serialization
 //!
 //! Implements basic serde struct for serializing and deserializing User with version 1.
@@ -129,7 +135,7 @@
 //! use serde_flow::{Flow};
 //!
 //! #[derive(Flow, Serialize, Deserialize)]
-//! #[flow(variant = 1, file(verify_write)]
+//! #[flow(variant = 1, file(verify_write))]
 //! struct User {
 //!     name: String
 //! }
@@ -142,28 +148,84 @@
 //! ### Blocking
 //!
 //! ```rust
+//! use serde::{Deserialize, Serialize};
 //! use serde_flow::{encoder::bincode, flow::File, flow::FileMigrate, Flow};
+//! use serde_flow::flow::FlowResult;
+//! # use tempfile::tempdir;
 //!
-//! let user = User { /* ... */ };
-//! user.save_to_path::<bincode::Encoder>(path.as_path())?;
+//! #[derive(Flow, Serialize, Deserialize)]
+//! #[flow(variant = 2, file(verify_write))]
+//! #[variants(UserV1)]
+//! struct User {
+//!     name: String
+//! }
+//!
+//! #[derive(Flow, Serialize, Deserialize)]
+//! #[flow(variant = 1, file(verify_write))]
+//! struct UserV1 {
+//!     value: u16
+//! }
+//! impl From<UserV1> for User {
+//!     fn from(object: UserV1) -> User {
+//!         User { name: object.value.to_string() }
+//!     }
+//! }
+//! # fn main() -> FlowResult<()> {
+//! # let temp_dir = tempdir().unwrap();
+//! # let path_buf = temp_dir.path().to_path_buf().join("car");
+//! # let path = path_buf.as_path();
+//! // create an old user
+//! let user = UserV1 { value: 123 };
+//! user.save_to_path::<bincode::Encoder>(path)?;
 //! // loading without updating stored User
-//! let user = User::load_from_path::<bincode::Encoder>(path.as_path())?;
+//! let user = User::load_from_path::<bincode::Encoder>(path)?;
 //! // loading with updating stored User
-//! let user = User::load_and_migrate::<bincode::Encoder>(path.as_path())?;
+//! let user = User::load_and_migrate::<bincode::Encoder>(path)?;
 //! // only migrating stored User
-//! User::migrate::<bincode::Encoder>(path.as_path())?;
+//! User::migrate::<bincode::Encoder>(path)?;
+//!
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ### Nonblocking
 //!
 //! ```rust
+//! use serde::{Deserialize, Serialize};
 //! use serde_flow::{encoder::bincode, flow::FileAsync, flow::FileMigrateAsync, Flow};
+//! use serde_flow::flow::FlowResult;
+//! # use tempfile::tempdir;
+//! # #[derive(Flow, Serialize, Deserialize)]
+//! # #[flow(variant = 2, file(nonblocking))]
+//! # #[variants(UserV1)]
+//! # struct User {
+//! #    name: String
+//! # }
+//! # #[derive(Flow, Serialize, Deserialize)]
+//! # #[flow(variant = 1, file(nonblocking))]
+//! # struct UserV1 {
+//! #    value: u16
+//! # }
+//! # impl From<UserV1> for User {
+//! #    fn from(object: UserV1) -> User {
+//! #        User { name: object.value.to_string() }
+//! #    }
+//! # }
+//! # #[tokio::main]
+//! # async fn main() -> FlowResult<()> {
+//! # let temp_dir = tempdir().unwrap();
+//! # let path_buf = temp_dir.path().to_path_buf().join("car");
+//! # let path = path_buf.as_path();
 //!
-//! let user = User { /* ... */ };
-//! user.save_to_path_async::<bincode::Encoder>(path.as_path()).await?;
-//! let user = User::load_from_path_async::<bincode::Encoder>(path.as_path()).await?;
-//! let user = User::load_and_migrate::<bincode::Encoder>(path.as_path())?;
-//! User::migrate::<bincode::Encoder>(path.as_path())?;
+//! // create an old user
+//! let user = UserV1 { value: 123 };
+//! user.save_to_path_async::<bincode::Encoder>(path).await?;
+//!
+//! let user = User::load_from_path_async::<bincode::Encoder>(path).await?;
+//! let user = User::load_and_migrate_async::<bincode::Encoder>(path).await?;
+//! User::migrate_async::<bincode::Encoder>(path).await?;
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ### Zerocopy
@@ -172,9 +234,25 @@
 //!
 //! ```rust
 //! use serde_flow::{flow::zerocopy::{File, FileMigrate}, Flow};
+//! use rkyv::{Archive, Serialize, Deserialize};
+//! # use tempfile::tempdir;
 //!
+//! #[derive(Flow, Archive, Serialize, Deserialize)]
+//! #[archive(check_bytes)]
+//! #[flow(variant = 1, file, zerocopy)]
+//! struct User {
+//!     name: String
+//! }
+//!
+//! # fn main() {
+//! # let temp_dir = tempdir().unwrap();
+//! # let path_buf = temp_dir.path().to_path_buf().join("car");
+//! # let path = path_buf.as_path();
+//! # let user = User { name: "Jan Janssen".to_string() };
+//! # user.save_to_path(path).unwrap();
 //! // Reader<User>
-//! let user = User::load_from_path::<bincode::Encoder>(path.as_path()).await;
+//! let user = User::load_from_path(path).unwrap();
+//! # }
 //! ```
 //!
 //! #### Reader
@@ -182,17 +260,58 @@
 //! With the ``Reader<T>`` trait, you can do two things: map exact bytes of the loaded file into immutable object (called "archive") or decode and copy information from a loaded file (called "deserialize"). The ``archive`` method uses zero-copy, while ``deserialize`` doesn't use it.
 //!
 //! ```rust
-//! let user_reader = User::load_from_path(path.as_path()).unwrap();
-//! let user_archived = user_reader.archive().unwrap();
+//! use serde_flow::{flow::zerocopy::File, Flow};
+//! use rkyv::{Archive, Serialize, Deserialize};
+//! # use serde_flow::flow::FlowResult;
+//! # use tempfile::tempdir;
 //!
-//! assert_eq!(user_archived.name, "John Doe".to_string());
+//! #[derive(Flow, Archive, Serialize, Deserialize)]
+//! #[archive(check_bytes)]
+//! #[flow(variant = 1, file, zerocopy)]
+//! struct User {
+//!     name: String
+//! }
+//! # fn main() -> FlowResult<()> {
+//! # let temp_dir = tempdir().unwrap();
+//! # let path_buf = temp_dir.path().to_path_buf().join("car");
+//! # let path = path_buf.as_path();
+//! # let user = User { name: "Jan Janssen".to_string() };
+//! # let _ = user.save_to_path(path)?;
+//! let user_reader = User::load_from_path(path)?;
+//! let user_archived = user_reader.archive()?;
+//!
+//! assert_eq!(user_archived.name, "Jan Janssen".to_string());
+//! # Ok(())
+//! # }
 //! ```
 //!
 //! ### Zerocopy Non-blocking
 //!
 //! ```rust
-//! use serde_flow::{flow::zerocopy::{FileAsync, FileMigrateAsync}, Flow};
-//! let user_reader = User::load_from_path_async(path.as_path()).await?;
+//! use serde_flow::{flow::zerocopy::FileAsync, Flow};
+//! use rkyv::{Archive, Serialize, Deserialize};
+//! # use serde_flow::flow::FlowResult;
+//! # use tempfile::tempdir;
+//!
+//! #[derive(Flow, Archive, Serialize, Deserialize)]
+//! #[archive(check_bytes)]
+//! #[flow(variant = 1, file(nonblocking), zerocopy)]
+//! struct User {
+//!     name: String
+//! }
+//!
+//! # #[tokio::main]
+//! # async fn main() -> FlowResult<()> {
+//! # let temp_dir = tempdir().unwrap();
+//! # let path_buf = temp_dir.path().to_path_buf().join("car");
+//! # let path = path_buf.clone();
+//! # let user = User { name: "Jan Janssen".to_string() };
+//! # let _ = user.save_to_path_async(path).await?;
+//! # let path = path_buf.clone();
+//! let user_reader = User::load_from_path_async(path).await?;
+//!
+//! # Ok(())
+//! # }
 //! ```
 pub mod encoder;
 pub mod error;
