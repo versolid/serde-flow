@@ -547,7 +547,7 @@ impl FlowGenerator {
                                 self.is_nonbloking = true;
                                 return Ok(());
                             }
-                            if file_meta.path.is_ident("nonbloking") {
+                            if file_meta.path.is_ident("nonblocking") {
                                 self.is_nonbloking = true;
                                 return Ok(());
                             }

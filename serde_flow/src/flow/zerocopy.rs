@@ -38,3 +38,8 @@ where
     fn load_and_migrate_async(path: &Path) -> AsyncResult<Reader<T>>;
     fn migrate_async(path: &Path) -> AsyncResult<()>;
 }
+
+pub trait Bytes<T> {
+    fn encode(&self) -> FlowResult<Vec<u8>>;
+    fn decode(bytes: &[u8]) -> FlowResult<T>;
+}

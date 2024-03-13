@@ -1,6 +1,6 @@
 [package]
 name = "serde_flow"
-version = "1.0.2"
+version = "1.1.0"
 edition = "2021"
 authors = ["Ivan Ermolaev <ermolaevym@gmail.com>"]
 license = "MIT"
