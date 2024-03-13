@@ -1,13 +1,15 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fs::OpenOptions};
 
 use rkyv::{Archive, Deserialize, Serialize};
 use serde_flow::encoder::zerocopy::{Encoder, Reader};
+use tempfile::tempdir;
 
 #[derive(Archive, Serialize, Deserialize)]
 #[archive(check_bytes)]
 pub struct User {
     pub first_name: String,
     pub last_name: String,
+    pub amount: u16,
 }
 
 #[derive(Archive, Serialize, Deserialize)]
@@ -22,6 +24,7 @@ fn struct_serialize_archive() {
     let user = User {
         first_name: "John".to_string(),
         last_name: "Doe".to_string(),
+        amount: 256,
     };
     let bytes = Encoder::serialize::<User>(&user).unwrap();
 
@@ -43,6 +46,7 @@ fn struct_with_hash_map_serialize_archive() {
         User {
             first_name: "John".to_string(),
             last_name: "Doe".to_string(),
+            amount: 256,
         },
     );
     users.values.insert(
@@ -50,6 +54,7 @@ fn struct_with_hash_map_serialize_archive() {
         User {
             first_name: "Jack".to_string(),
             last_name: "Brown".to_string(),
+            amount: 256,
         },
     );
 

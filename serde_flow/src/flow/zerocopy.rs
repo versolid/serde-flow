@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::{AsyncResult, FlowResult};
 use crate::encoder::zerocopy::Reader;
@@ -26,8 +26,8 @@ where
     T: rkyv::Archive + rkyv::Serialize<crate::encoder::zerocopy::DefaultSerializer>,
     T::Archived: for<'b> rkyv::CheckBytes<rkyv::validation::validators::DefaultValidator<'b>>,
 {
-    fn load_from_path_async(path: &Path) -> AsyncResult<Reader<T>>;
-    fn save_to_path_async(&self, path: &Path) -> AsyncResult<()>;
+    fn load_from_path_async<'a>(path: PathBuf) -> AsyncResult<'a, Reader<'a, T>>;
+    fn save_to_path_async(&self, path: PathBuf) -> AsyncResult<()>;
 }
 
 pub trait FileMigrateAsync<T>
@@ -37,4 +37,13 @@ where
 {
     fn load_and_migrate_async(path: &Path) -> AsyncResult<Reader<T>>;
     fn migrate_async(path: &Path) -> AsyncResult<()>;
+}
+
+pub trait Bytes<T>
+where
+    T: rkyv::Archive + rkyv::Serialize<crate::encoder::zerocopy::DefaultSerializer>,
+    T::Archived: for<'b> rkyv::CheckBytes<rkyv::validation::validators::DefaultValidator<'b>>,
+{
+    fn encode(&self) -> FlowResult<Vec<u8>>;
+    fn decode(bytes: Vec<u8>) -> FlowResult<Reader<'static, T>>;
 }

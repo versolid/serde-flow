@@ -12,3 +12,6 @@ pub mod async_migration;
 
 #[cfg(test)]
 pub mod json_migration;
+
+#[cfg(test)]
+pub mod bytes_migration;

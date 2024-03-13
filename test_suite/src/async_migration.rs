@@ -4,7 +4,7 @@ use serde_flow::{encoder::bincode, flow::FileAsync, flow::FileMigrateAsync, Flow
 use tempfile::tempdir;
 
 #[derive(Serialize, Deserialize, Flow)]
-#[flow(variant = 3, file(nonbloking))]
+#[flow(variant = 3, file(nonblocking))]
 #[variants(CarV1, CarV2)]
 pub struct Car {
     pub name: String,
@@ -20,7 +20,7 @@ pub struct CarV1 {
 }
 
 #[derive(Serialize, Deserialize, Flow)]
-#[flow(variant = 1, file(nonbloking))]
+#[flow(variant = 1, file(nonblocking))]
 pub struct CarV2 {
     pub brand: String,
     pub model: String,
@@ -86,7 +86,7 @@ async fn test_load_from_path() -> Result<(), SerdeFlowError> {
 }
 
 #[derive(Serialize, Deserialize, Flow)]
-#[flow(variant = 4, file(nonbloking))]
+#[flow(variant = 4, file(nonblocking))]
 pub struct CarNoMigration {
     pub name: String,
     pub price: String,
@@ -115,7 +115,7 @@ async fn test_load_from_path_variant_not_found() -> Result<(), SerdeFlowError> {
 }
 
 #[derive(Serialize, Deserialize, Flow)]
-#[flow(variant = 4, file(nonbloking))]
+#[flow(variant = 4, file(nonblocking))]
 #[variants(CarV1)]
 pub struct CarWithMigration {
     pub name: String,
@@ -154,7 +154,7 @@ async fn test_load_from_path_insufficient_variants() -> Result<(), SerdeFlowErro
 }
 
 #[derive(Serialize, Deserialize, Flow)]
-#[flow(variant = 3, file(nonbloking))]
+#[flow(variant = 3, file(nonblocking))]
 pub struct CarTest {
     pub name: String,
     pub price: String,
