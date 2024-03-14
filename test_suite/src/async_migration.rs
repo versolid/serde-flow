@@ -236,7 +236,7 @@ async fn test_load_from_file_not_found() -> Result<(), SerdeFlowError> {
 async fn test_load_from_file_format_invalid() -> Result<(), SerdeFlowError> {
     let temp_dir = tempdir().unwrap();
     let path = temp_dir.path().to_path_buf().join("zero");
-    std::fs::write(path.as_path(), Vec::new());
+    let _ = std::fs::write(path.as_path(), Vec::new());
 
     let result = Car::load_from_path_async::<bincode::Encoder>(path.as_path()).await;
     let Err(SerdeFlowError::FormatInvalid) = result else {
@@ -261,7 +261,7 @@ async fn test_migration_not_found() -> Result<(), SerdeFlowError> {
 async fn test_migration_format_invalid() -> Result<(), SerdeFlowError> {
     let temp_dir = tempdir().unwrap();
     let path = temp_dir.path().to_path_buf().join("not_found");
-    std::fs::write(path.as_path(), Vec::new());
+    let _ = std::fs::write(path.as_path(), Vec::new());
 
     let result = Car::migrate_async::<bincode::Encoder>(path.as_path()).await;
     let Err(SerdeFlowError::FormatInvalid) = result else {

@@ -1,8 +1,7 @@
-use std::{collections::HashMap, fs::OpenOptions};
+use std::collections::HashMap;
 
 use rkyv::{Archive, Deserialize, Serialize};
 use serde_flow::encoder::zerocopy::{Encoder, Reader};
-use tempfile::tempdir;
 
 #[derive(Archive, Serialize, Deserialize)]
 #[archive(check_bytes)]

@@ -1,9 +1,13 @@
-Serde Flow - Migration Framework
+Serde Flow - Compatibility Framework
 ==================================
 
 [<img alt="build status" src="https://img.shields.io/github/actions/workflow/status/versolid/serde-flow/ci.yml?branch=main&style=for-the-badge" height="20">](https://github.com/versolid/serde-flow/actions?query=branch%3Amain)
 
-**serde_flow is a Rust library that simplifies managing changes to serialized data formats during software development, enabling seamless file migration and maintaining version compatibility by supporting backward compatibility through versioning of serialized data.**
+**The library assists you in smoothly deserializing the earlier variants of your serialized information.**
+
+### Description
+The Rust library that simplifies *managing changes* to *serialized data formats* during software development, enabling seamless file migration and maintaining *version compatibility* by supporting backward compatibility through versioning of serialized data.
+
 
 ## Features
 1. **Versioning of serialize/deserialize entities** 
@@ -22,6 +26,7 @@ Serde Flow primarily consists of three major components:
         - ``nonblocking`` - async IO loading and deserialization (it's possible to use blockin and nonblocking at the same time)
         - ``verify_write`` - verifies writted data by calculating checksum
     - ``zerocopy`` - Uses rkyv to perfome zerocopy deserialization.
+    - ``bytes`` - Uses in memory migration without persising on the disk (just call `encode()->Vec<u8>` or `decode(Vec<u8>)->T`)
 3. `#[variants(StructA, StructB, ...)]` (*Optional*): This annotation is optional but highly recommended for comprehensive data migration management. Here, you list the structs that are essential for migrating into the struct highlighted with this annotation. *To ensure, you need to implement `From<VariantStruct>` for all structs listed in `#[variants(..)]`*.
 
 ## 🛠️ Getting Started

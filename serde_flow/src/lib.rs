@@ -1,6 +1,6 @@
 //! # Serde Flow - Migration Framework
 //!
-//! **This Rust library helps manage changes to how data is saved in files while making it easy to move from one version of the file format to another, and keeping things working with older versions by versioning how the data is saved.**
+//! **The library assists you in smoothly deserializing the earlier versions of your serialized information.**
 //!
 //! ## Key Features
 //!
